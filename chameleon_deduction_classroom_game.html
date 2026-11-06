@@ -14,6 +14,19 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
+    :where(.hidden) { display: none; }
+    .dashboard-panels { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1.5rem; }
+    .dashboard-panel { grid-column: span 12; min-width: 0; }
+    .dashboard-editing .dashboard-panel { outline: 2px dashed #94a3b8; cursor: pointer; }
+    .dashboard-editing .dashboard-panel[data-selected="true"] { outline: 3px solid #38bdf8; }
+    .dashboard-editing .dashboard-panel[data-panel-hidden="true"] { opacity: 0.45; }
+    .dashboard-panels:not(.dashboard-editing) .dashboard-panel[data-panel-hidden="true"] { display: none; }
+    .simple-home { max-width: 56rem; margin: 3rem auto; }
+    .home-status { text-align: center; padding: 3rem 1.5rem; }
+    .top-navigation { margin-left: auto; order: 3; }
+    @media (min-width: 768px) {
+      .dashboard-panel { grid-column: span var(--panel-width, 12); }
+    }
     /* ==========================================================================
        DYNAMIC THEME ENGINE CSS VARIABLES
        ========================================================================== */
@@ -213,12 +226,13 @@
       </div>
 
       <!-- View Switcher (Student / Projector / Setup) -->
-      <div class="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+      <div class="top-navigation flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+        <button onclick="switchView('home')" class="px-3 py-1.5 rounded-lg text-sm">Home</button>
         <button onclick="switchView('student')" id="tabStudent" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
-          <span>📱</span> <span>Student View</span>
+          <span>📱</span> <span>Student Dashboard</span>
         </button>
-        <button onclick="requestTeacherAccess('projector')" id="tabProjector" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
-          <span>📽️</span> <span>Projector + Teacher</span>
+        <button onclick="openTeacherDashboard()" id="tabProjector" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+          <span>📽️</span> <span>Teacher Dashboard</span>
         </button>
         <button onclick="requestTeacherAccess('backend')" id="tabBackendBtn" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold hover:bg-white/10 transition flex items-center gap-1" title="Google Sheets Backend Setup">
           <span>⚙️</span> <span class="hidden md:inline">Sheet API</span>
@@ -229,7 +243,7 @@
       </div>
 
       <!-- Instant Theme Switcher + Sound Toggle -->
-      <div class="flex items-center gap-1.5">
+      <div id="headerAppearanceTools" class="flex items-center gap-1.5">
         <select id="quickThemeSelect" onchange="setTheme(this.value)" aria-label="Select Game Theme" class="bg-black/40 text-xs sm:text-sm font-medium px-2.5 py-1.5 rounded-lg border border-white/15 focus:outline-none">
           <option value="werewolf">🐺 Classic Werewolf</option>
           <option value="scifi">🚀 Outpost 8 (Sci-Fi)</option>
@@ -252,11 +266,43 @@
        MAIN CONTENT CONTAINER
        ========================================================================== -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
+    <section id="viewHome" class="simple-home space-y-5">
+      <div class="theme-card rounded-2xl home-status space-y-4">
+        <p id="homeGroupLabel" class="text-sm opacity-75"></p>
+        <h2 id="homeGameStatus" class="font-theme-display text-3xl font-bold"></h2>
+        <p id="homeGameDetail" class="text-sm"></p>
+        <p id="homeRecentResult" class="text-sm opacity-80"></p>
+        <button onclick="openTeacherDashboard()" id="homeContinueBtn" class="theme-accent-btn px-5 py-3 rounded-xl font-bold">Quick start</button>
+        <form onsubmit="event.preventDefault(); joinFromHome();" class="max-w-sm mx-auto space-y-2">
+          <label for="homeRoomInput" class="block text-sm">Players: enter your game code</label>
+          <div class="flex gap-2">
+            <input id="homeRoomInput" maxlength="8" required placeholder="WOLF" class="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/20 uppercase" />
+            <button type="submit" class="px-4 py-2 rounded-lg bg-white/15">Join</button>
+          </div>
+          <p class="text-xs opacity-70">Next, enter your name on the Student Dashboard.</p>
+        </form>
+      </div>
+      <div id="homeClassManagement" class="theme-card rounded-2xl p-5 space-y-3">
+        <h3 class="font-bold">Saved classes</h3>
+        <p class="text-xs opacity-75">Four independent game codes. Select a class to resume its roster and settings. Live classes share match state through the spreadsheet; layouts stay on this instructor browser.</p>
+        <div id="homeGroupButtons" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="requestGroupAction('new')" class="px-3 py-2 rounded-lg bg-white/15">New game (keep roster)</button>
+          <button onclick="requestGroupAction('settings')" class="px-3 py-2 rounded-lg bg-white/15">Reset settings</button>
+          <button onclick="requestGroupAction('clear')" class="px-3 py-2 rounded-lg bg-red-500/20">Clear group</button>
+        </div>
+        <label for="groupNameInput" class="block text-xs">Class name</label>
+        <div class="flex gap-2">
+          <input id="groupNameInput" maxlength="32" class="px-3 py-2 rounded-lg bg-black/40 border border-white/20" />
+          <button onclick="renameGroup()" class="px-3 py-2 rounded-lg bg-white/15">Save name</button>
+        </div>
+      </div>
+    </section>
 
     <!-- ========================================================================
          VIEW 1: STUDENT CHROMEBOOK CONTROLLER VIEW
          ======================================================================== -->
-    <section id="viewStudent" class="max-w-lg mx-auto space-y-4">
+    <section id="viewStudent" class="max-w-lg mx-auto space-y-4 hidden">
       
       <!-- Student Join / Login Card -->
       <div id="studentJoinCard" class="theme-card rounded-2xl p-5 sm:p-6 space-y-5">
@@ -333,6 +379,10 @@
 
       <!-- Active Student Controller Dashboard (Shown after joining) -->
       <div id="studentActiveDashboard" class="space-y-4 hidden">
+        <div class="theme-card rounded-2xl p-4 flex justify-between items-center" role="timer">
+          <span id="studentTimerStatus" class="text-sm">Waiting for start</span>
+          <span id="studentTimerDisplay" class="font-mono text-3xl font-bold">00:45</span>
+        </div>
         
         <!-- Top Status Pill -->
         <div class="theme-card rounded-2xl p-4 flex items-center justify-between">
@@ -445,9 +495,27 @@
          VIEW 2: TEACHER PROJECTOR + GOD MODE DASHBOARD
          ======================================================================== -->
     <section id="viewProjector" class="space-y-6 hidden">
+      <div class="theme-panel rounded-xl p-3 flex flex-wrap items-center gap-3">
+        <strong id="teacherGameStatus"></strong>
+        <button onclick="toggleDashboardCustomization()" id="customizeDashboardBtn" class="px-3 py-2 rounded bg-white/10 text-sm">Customize dashboard</button>
+        <button onclick="switchView('home')" class="px-3 py-2 rounded bg-white/10 text-sm">Classes / New game / Reset</button>
+      </div>
+      <div id="dashboardCustomizer" class="theme-card rounded-xl p-4 space-y-3 hidden">
+        <p class="text-sm">Select a panel by clicking its unused space, or choose it below. Hidden panels appear faded while editing. Width changes apply on larger screens; panels stack on phones. Changes save for this class on this browser.</p>
+        <label class="text-sm">Panel <select id="customPanelSelect" onchange="selectDashboardPanel(this.value)" class="bg-black/60 p-2 rounded"></select></label>
+        <label class="text-sm">Width <select id="customPanelWidth" onchange="updateDashboardPanel('width', Number(this.value))" class="bg-black/60 p-2 rounded"><option value="12">Full</option><option value="8">Two thirds</option><option value="6">Half</option><option value="4">One third</option></select></label>
+        <label class="text-sm">Background <input id="customPanelBackground" type="color" onchange="updateDashboardPanel('background', this.value)" /></label>
+        <label class="text-sm">Border color <input id="customPanelBorder" type="color" onchange="updateDashboardPanel('borderColor', this.value)" /></label>
+        <label class="text-sm">Border <select id="customPanelBorderStyle" onchange="updateDashboardPanel('borderStyle', this.value)" class="bg-black/60 p-2 rounded"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="none">None</option></select></label>
+        <label class="text-sm">Thickness <select id="customPanelBorderWidth" onchange="updateDashboardPanel('borderWidth', Number(this.value))" class="bg-black/60 p-2 rounded"><option value="1">Thin</option><option value="2">Medium</option><option value="4">Thick</option></select></label>
+        <button onclick="toggleSelectedPanel()" id="customPanelVisibility" class="px-3 py-2 rounded bg-white/10">Hide panel</button>
+        <button onclick="resetDashboardLayout()" class="px-3 py-2 rounded bg-white/10">Reset layout</button>
+        <button onclick="toggleDashboardCustomization()" class="px-3 py-2 rounded bg-white/10">Done</button>
+      </div>
+      <div id="dashboardPanels" class="dashboard-panels">
       
       <!-- Top Projector Banner: Room Code, Phase Banner, Timer & Phase Controls -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+      <div id="panelOverview" class="dashboard-panel grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         <!-- Room / Seed Join Banner (4 cols) -->
         <div class="lg:col-span-4 theme-card rounded-2xl p-5 flex flex-col justify-between">
@@ -545,7 +613,7 @@
       <!-- ====================================================================
            TEACHER GOD MODE DRAWER (Collapsible Configuration & Secret Inspector)
            ==================================================================== -->
-      <div id="teacherGodDrawer" class="theme-card rounded-2xl p-5 border-2 border-amber-500/40 space-y-5 hidden">
+      <div id="teacherGodDrawer" class="dashboard-panel theme-card rounded-2xl p-5 border-2 border-amber-500/40 space-y-5 hidden">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">👑</span>
@@ -678,7 +746,7 @@
       <!-- ====================================================================
            DRAMATIC MORNING REPORT / PHASE ANNOUNCEMENT BANNER
            ==================================================================== -->
-      <div id="projAnnouncementBox" class="theme-card rounded-2xl p-6 border-l-4 border-l-amber-400 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div id="projAnnouncementBox" class="dashboard-panel theme-card rounded-2xl p-6 border-l-4 border-l-amber-400 flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="space-y-1">
           <div class="text-xs font-bold uppercase tracking-widest text-amber-400" id="projNewsHeader">
             📜 TOWN CHRONICLE & OVERNIGHT BULLETIN
@@ -697,14 +765,14 @@
       <!-- ====================================================================
            SPATIAL LOCATIONS OVERVIEW (Shown on Projector when Spatial Mode ON)
            ==================================================================== -->
-      <div id="projLocationsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div id="projLocationsGrid" class="dashboard-panel grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Populated dynamically with the 4 themed locations -->
       </div>
 
       <!-- ====================================================================
            LIVE CLASSROOM ROSTER GRID (Alive, Eliminated, Votes, Haunts, God Controls)
            ==================================================================== -->
-      <div class="space-y-3">
+      <div id="panelRoster" class="dashboard-panel space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="font-theme-display text-lg font-bold tracking-wide flex items-center gap-2">
             <span>👥</span> <span id="projRosterTitle">CITIZEN ROSTER & LIVE VOTING TALLY</span>
@@ -722,6 +790,7 @@
         </div>
       </div>
 
+      </div>
     </section>
 
   </main>
@@ -944,6 +1013,14 @@ function jsonResponse(obj) {
     </div>
   </div>
   <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+  <div id="groupActionModal" role="dialog" aria-modal="true" aria-labelledby="groupActionTitle" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hidden">
+    <div class="theme-card rounded-2xl max-w-md w-full p-5 space-y-4">
+      <h3 id="groupActionTitle" class="font-bold">Confirm class change</h3>
+      <p id="groupActionMessage" class="text-sm"></p>
+      <button onclick="closeModal('groupActionModal')" class="px-3 py-2 rounded bg-white/10">Cancel</button>
+      <button onclick="confirmGroupAction()" class="px-3 py-2 rounded bg-red-500/20">Confirm</button>
+    </div>
+  </div>
 
   <!-- ==========================================================================
        CORE APPLICATION JAVASCRIPT
@@ -1176,6 +1253,7 @@ function jsonResponse(obj) {
       taskProgress: 12,
       matchSessionId: 'match_1',
       lastHauntEvent: null,
+      lastResult: null,
       announcement: 'Welcome! Have students open Student View and enter Room Code WOLF, or test immediately with our Classroom Bots.',
       revealRolesOnGodPanel: false,
       players: []
@@ -1213,7 +1291,8 @@ function jsonResponse(obj) {
     let timerInterval = null;
     let syncInterval = null;
     let gasWebAppUrl = localStorage.getItem('chameleon_gas_url') || '';
-    let activeView = 'projector';
+    const DEFAULT_GAME_STATE = JSON.parse(JSON.stringify(gameState));
+    let activeView = 'home';
     let storageError = false;
     let syncStatus = 'Not connected';
     let sharedRoomExists = null;
@@ -1222,6 +1301,20 @@ function jsonResponse(obj) {
     let readInFlight = false;
     let stateGeneration = 0;
     let pendingRemovalIds = [];
+    let groups = [];
+    let dashboardLayout = {};
+    let dashboardEditing = false;
+    let selectedPanel = 'panelOverview';
+    let pendingGroupAction = null;
+    let timerAlarmKey = null;
+    let previousTimerRemaining = null;
+    const DASHBOARD_PANELS = {
+      panelOverview: 'Game overview and phase controls',
+      teacherGodDrawer: 'Teacher setup',
+      projAnnouncementBox: 'Announcements',
+      projLocationsGrid: 'Locations',
+      panelRoster: 'Player roster'
+    };
 
     // Haunt pacing: a haunt plays a brief animation then clears itself, and each
     // device can only trigger a new haunt after a short cooldown so eliminated
@@ -1271,6 +1364,16 @@ function jsonResponse(obj) {
           gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
           osc.start(now);
           osc.stop(now + 0.36);
+        } else if (type === 'timer-end') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now);
+          gain.gain.setValueAtTime(0, now);
+          [0, 0.3, 0.6].forEach(offset => {
+            gain.gain.linearRampToValueAtTime(0.14, now + offset + 0.02);
+            gain.gain.linearRampToValueAtTime(0, now + offset + 0.2);
+          });
+          osc.start(now);
+          osc.stop(now + 0.85);
         } else if (type === 'success') {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(587.33, now);
@@ -1520,7 +1623,7 @@ function jsonResponse(obj) {
         gameState = { ...gameState, ...parsed.state };
         normalizePlayerSeats();
         pendingTeacherState = parsed.pendingTeacherState || null;
-        activeView = parsed.view === 'student' ? 'student' : 'projector';
+        activeView = ['home', 'student', 'projector'].includes(parsed.view) ? parsed.view : 'home';
         // phaseEndTime is an absolute timestamp, so the countdown naturally
         // resumes from the correct remaining time after a refresh.
         localTimerTracker.lastSeenPhase = gameState.phase;
@@ -1548,6 +1651,275 @@ function jsonResponse(obj) {
 
     function nextPlayerSeat() {
       return Math.max(0, ...gameState.players.map(p => p.seat || 0)) + 1;
+    }
+
+    function readLocalPreference(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (error) {
+        console.error('Cannot read preference: ' + key, error);
+        showToast('A saved dashboard preference could not be loaded. Defaults are being used.');
+        return fallback;
+      }
+    }
+
+    function writeLocalPreference(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (error) {
+        console.error('Cannot save preference: ' + key, error);
+        showToast('Dashboard settings could not be saved. Check browser storage.');
+        return false;
+      }
+    }
+
+    function initializeGroups() {
+      const saved = readLocalPreference('chameleon_groups', null);
+      groups = Array.isArray(saved) && saved.length === 4 &&
+        saved.every(g => typeof g.code === 'string' && typeof g.name === 'string') &&
+        new Set(saved.map(g => g.code)).size === 4 ? saved : [
+          { name: 'Class 1', code: gameState.roomCode },
+          ...['CLASS2', 'CLASS3', 'CLASS4'].filter(code => code !== gameState.roomCode)
+            .map((code, index) => ({ name: 'Class ' + (index + 2), code }))
+        ];
+      while (groups.length < 4) groups.push({ name: 'Class ' + (groups.length + 1), code: 'GROUP' + (groups.length + 1) });
+      writeLocalPreference('chameleon_groups', groups);
+      loadDashboardLayout();
+    }
+
+    function loadDashboardLayout() {
+      const saved = readLocalPreference('chameleon_layout_' + gameState.roomCode, {});
+      dashboardLayout = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+      dashboardEditing = false;
+      applyDashboardLayout();
+    }
+
+    function gameStatusLabel() {
+      return gameState.phase === 'gameover' ? 'Game ended'
+        : gameState.phase === 'lobby'
+          ? (gameState.players.length === 0 || (gameState.networkMode === 'sheets' && sharedRoomExists !== true)
+            ? 'Needs setup' : 'Ready to start')
+          : 'Game in session';
+    }
+
+    function renderHome() {
+      const group = groups.find(g => g.code === gameState.roomCode);
+      document.getElementById('homeClassManagement').classList.toggle('hidden', !securityState.isTeacherUnlocked);
+      document.getElementById('headerAppearanceTools').classList.toggle('hidden', activeView === 'home');
+      document.getElementById('tabBackendBtn').classList.toggle('hidden', activeView === 'home');
+      document.getElementById('btnLockSimToggle').classList.toggle('hidden', activeView === 'home');
+      document.getElementById('homeGroupLabel').textContent = `${group?.name || 'Room'} · ${gameState.roomCode}`;
+      document.getElementById('homeGameStatus').textContent = gameStatusLabel();
+      document.getElementById('teacherGameStatus').textContent = gameStatusLabel();
+      document.getElementById('homeGameDetail').textContent =
+        `${gameState.players.length} players · Round ${gameState.round} · ${gameState.phase === 'lobby' ? 'Review your roster, then select Start Game.' : 'Phase: ' + gameState.phase}`;
+      const result = gameState.lastResult || (gameState.phase === 'gameover'
+        ? { text: gameState.announcement.replace(/<[^>]*>/g, '') } : null);
+      document.getElementById('homeRecentResult').textContent = result ? 'Most recent result: ' + result.text : '';
+      document.getElementById('homeContinueBtn').textContent = gameState.phase === 'gameover'
+        ? 'View results' : gameState.phase === 'lobby' ? 'Quick start / Set up game' : 'Continue game';
+      if (document.activeElement !== document.getElementById('homeRoomInput'))
+        document.getElementById('homeRoomInput').value = gameState.roomCode;
+      if (document.activeElement !== document.getElementById('groupNameInput'))
+        document.getElementById('groupNameInput').value = group?.name || '';
+      const buttons = document.getElementById('homeGroupButtons');
+      buttons.replaceChildren();
+      groups.forEach(g => {
+        const button = document.createElement('button');
+        button.textContent = `${g.name} · ${g.code}`;
+        button.className = 'p-3 rounded-xl text-sm ' + (g.code === gameState.roomCode ? 'theme-accent-btn' : 'bg-white/10');
+        button.onclick = () => selectGroup(g.code);
+        buttons.appendChild(button);
+      });
+    }
+
+    function openTeacherDashboard() {
+      if (!securityState.isTeacherUnlocked) {
+        requestTeacherAccess('projector');
+        return;
+      }
+      switchView('projector');
+      if (gameState.phase === 'lobby') document.getElementById('teacherGodDrawer').classList.remove('hidden');
+    }
+
+    async function selectGroup(code) {
+      if (!securityState.isTeacherUnlocked) {
+        requestTeacherAccess('projector');
+        return;
+      }
+      if (code === gameState.roomCode) return;
+      await openSavedRoom(code);
+    }
+
+    async function openSavedRoom(code) {
+      if (pendingTeacherState || writeInFlight) {
+        showToast('Confirm the pending spreadsheet save before switching classes.');
+        return false;
+      }
+      saveLocalGameState();
+      const networkMode = gameState.networkMode;
+      stateGeneration++;
+      gameState = { ...JSON.parse(JSON.stringify(DEFAULT_GAME_STATE)), roomCode: code, networkMode,
+        matchSessionId: 'match_' + Date.now(), phaseEndTime: Date.now() + 45000 };
+      restoreLocalGameState(code);
+      activeView = 'home';
+      studentSession.joined = false;
+      studentSession.peeking = false;
+      studentSession.playerId = null;
+      syncStatus = 'Not connected';
+      sharedRoomExists = null;
+      previousTimerRemaining = null;
+      loadDashboardLayout();
+      document.getElementById('studentRoomInput').value = code;
+      setTheme(gameState.theme, false);
+      switchView('home');
+      if (gameState.networkMode === 'sheets' && gasWebAppUrl) await retryLiveSync();
+      return true;
+    }
+
+    async function joinFromHome() {
+      const code = document.getElementById('homeRoomInput').value.trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{1,8}$/.test(code)) {
+        showToast('Enter a game code using 1–8 letters, numbers, underscores, or hyphens.');
+        return;
+      }
+      if (code !== gameState.roomCode && !await openSavedRoom(code)) return;
+      securityState.isTeacherUnlocked = false;
+      document.getElementById('teacherGodDrawer').classList.add('hidden');
+      updateSecurityLockUI();
+      document.getElementById('studentRoomInput').value = code;
+      switchView('student');
+    }
+
+    function renameGroup() {
+      if (!securityState.isTeacherUnlocked) return;
+      const group = groups.find(g => g.code === gameState.roomCode);
+      const name = document.getElementById('groupNameInput').value.trim();
+      if (!group || !name) {
+        showToast('Select one of your saved classes and enter a name.');
+        return;
+      }
+      group.name = name;
+      writeLocalPreference('chameleon_groups', groups);
+      renderHome();
+    }
+
+    function requestGroupAction(action) {
+      if (!securityState.isTeacherUnlocked) {
+        requestTeacherAccess('projector');
+        return;
+      }
+      if (!['new', 'settings', 'clear'].includes(action)) return;
+      pendingGroupAction = action;
+      const messages = {
+        new: 'Start a new game in this class? The roster, rules, layout, and recent result stay. Roles, eliminations, votes, tasks, seat locks, and timer will reset.',
+        settings: 'Restore default rules, theme, and instructor layout for this class? The roster, current match, connection, and teacher PIN stay.',
+        clear: 'Permanently clear this class roster, match, recent result, rules, and instructor layout? Other classes, connection, and teacher PIN stay. This cannot be undone.'
+      };
+      document.getElementById('groupActionMessage').textContent = messages[action];
+      openModal('groupActionModal');
+    }
+
+    function confirmGroupAction() {
+      if (!securityState.isTeacherUnlocked || !pendingGroupAction) return;
+      const action = pendingGroupAction;
+      pendingGroupAction = null;
+      closeModal('groupActionModal');
+      if (action === 'new') {
+        assignRolesAndStartNewMatch();
+      } else {
+        if (action === 'clear') {
+          const { roomCode, networkMode } = gameState;
+          gameState = { ...JSON.parse(JSON.stringify(DEFAULT_GAME_STATE)), roomCode, networkMode,
+            matchSessionId: 'match_' + Date.now(), phaseEndTime: Date.now() + 45000 };
+          clearStudentSeatLockAndLeave();
+        } else {
+          ['theme', 'spatialMode', 'sameRoomKillOnly', 'impostorCount', 'revealRolesOnGodPanel']
+            .forEach(key => { gameState[key] = DEFAULT_GAME_STATE[key]; });
+        }
+        resetDashboardLayout();
+        setTheme(gameState.theme, false);
+        pushStateToGoogleSheetIfNeeded();
+      }
+      renderAll();
+      showToast(action === 'new' ? 'New game ready. Roster kept.' : action === 'clear' ? 'Class cleared.' : 'Default settings restored. Roster and match kept.');
+    }
+
+    function applyDashboardLayout() {
+      const container = document.getElementById('dashboardPanels');
+      container.classList.toggle('dashboard-editing', dashboardEditing);
+      document.getElementById('dashboardCustomizer').classList.toggle('hidden', !dashboardEditing);
+      document.getElementById('customizeDashboardBtn').textContent = dashboardEditing ? 'Finish customizing' : 'Customize dashboard';
+      Object.keys(DASHBOARD_PANELS).forEach(id => {
+        const panel = document.getElementById(id);
+        const settings = dashboardLayout[id] || {};
+        panel.style.setProperty('--panel-width', [4, 6, 8, 12].includes(settings.width) ? settings.width : 12);
+        panel.style.backgroundColor = /^#[0-9a-f]{6}$/i.test(settings.background || '') ? settings.background : '';
+        panel.style.borderColor = /^#[0-9a-f]{6}$/i.test(settings.borderColor || '') ? settings.borderColor : '';
+        panel.style.borderStyle = ['solid', 'dashed', 'none'].includes(settings.borderStyle) ? settings.borderStyle : '';
+        panel.style.borderWidth = [1, 2, 4].includes(settings.borderWidth) ? settings.borderWidth + 'px' : '';
+        panel.setAttribute('data-panel-hidden', String(Boolean(settings.hidden)));
+        panel.setAttribute('data-selected', String(dashboardEditing && id === selectedPanel));
+        if (dashboardEditing && id === 'teacherGodDrawer') panel.classList.remove('hidden');
+      });
+    }
+
+    function toggleDashboardCustomization() {
+      if (!securityState.isTeacherUnlocked) return;
+      dashboardEditing = !dashboardEditing;
+      applyDashboardLayout();
+      selectDashboardPanel(selectedPanel);
+    }
+
+    function selectDashboardPanel(id) {
+      if (!DASHBOARD_PANELS[id]) return;
+      selectedPanel = id;
+      const settings = dashboardLayout[id] || {};
+      document.getElementById('customPanelSelect').value = id;
+      document.getElementById('customPanelWidth').value = settings.width || 12;
+      document.getElementById('customPanelBackground').value = settings.background || '#1e293b';
+      document.getElementById('customPanelBorder').value = settings.borderColor || '#334155';
+      document.getElementById('customPanelBorderStyle').value = settings.borderStyle || 'solid';
+      document.getElementById('customPanelBorderWidth').value = settings.borderWidth || 1;
+      document.getElementById('customPanelVisibility').textContent = settings.hidden ? 'Restore panel' : 'Hide panel';
+      applyDashboardLayout();
+    }
+
+    function updateDashboardPanel(key, value) {
+      if (!dashboardEditing || !securityState.isTeacherUnlocked) return;
+      if (!['width', 'background', 'borderColor', 'borderStyle', 'borderWidth', 'hidden'].includes(key)) return;
+      dashboardLayout[selectedPanel] = { ...dashboardLayout[selectedPanel], [key]: value };
+      writeLocalPreference('chameleon_layout_' + gameState.roomCode, dashboardLayout);
+      selectDashboardPanel(selectedPanel);
+    }
+
+    function toggleSelectedPanel() {
+      updateDashboardPanel('hidden', !dashboardLayout[selectedPanel]?.hidden);
+    }
+
+    function resetDashboardLayout() {
+      if (!securityState.isTeacherUnlocked) return;
+      dashboardLayout = {};
+      writeLocalPreference('chameleon_layout_' + gameState.roomCode, dashboardLayout);
+      applyDashboardLayout();
+      selectDashboardPanel(selectedPanel);
+    }
+
+    function initializeDashboardEditor() {
+      const select = document.getElementById('customPanelSelect');
+      select.replaceChildren();
+      Object.entries(DASHBOARD_PANELS).forEach(([id, name]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = name;
+        select.appendChild(option);
+        document.getElementById(id).addEventListener('click', event => {
+          if (dashboardEditing && !event.target.closest('button, input, select, textarea, a, summary, label'))
+            selectDashboardPanel(id);
+        });
+      });
     }
 
     /* ==========================================================================
@@ -1595,6 +1967,11 @@ function jsonResponse(obj) {
         else populateSimulatedClass(12);
       }
       const restoredView = activeView;
+      initializeDashboardEditor();
+      initializeGroups();
+      window.addEventListener('pointerdown', () => {
+        if (soundEnabled) ensureAudioCtx();
+      }, { once: true });
 
       document.getElementById('studentRoomInput').value = gameState.roomCode;
       document.getElementById('godRoomCodeInput').value = gameState.roomCode;
@@ -1616,7 +1993,7 @@ function jsonResponse(obj) {
       } else {
         securityState.isTeacherUnlocked = true;
         updateSecurityLockUI();
-        switchView(restoredView);
+        switchView(restoredView === 'student' ? 'student' : 'home');
       }
 
       // Check if this Chromebook previously locked into a seat for the active matchSessionId
@@ -1752,12 +2129,13 @@ function jsonResponse(obj) {
         name: player.name,
         seat: player.seat
       };
-      localStorage.setItem('chameleon_seat_lock', JSON.stringify(lockData));
+      localStorage.setItem('chameleon_seat_lock_' + gameState.roomCode, JSON.stringify(lockData));
     }
 
     function restoreLockedStudentSeatIfAny() {
       try {
-        const raw = localStorage.getItem('chameleon_seat_lock');
+        const raw = localStorage.getItem('chameleon_seat_lock_' + gameState.roomCode) ||
+          localStorage.getItem('chameleon_seat_lock');
         if (!raw) return;
         const lockData = JSON.parse(raw);
         if (lockData && lockData.roomCode === gameState.roomCode && lockData.matchSessionId === gameState.matchSessionId) {
@@ -1770,6 +2148,7 @@ function jsonResponse(obj) {
             studentSession.seatNumber = existing.seat;
             document.getElementById('studentJoinCard').classList.add('hidden');
             document.getElementById('studentActiveDashboard').classList.remove('hidden');
+            saveStudentSeatLock(existing);
           }
         }
       } catch (e) {}
@@ -1780,6 +2159,7 @@ function jsonResponse(obj) {
       gameState.players = [];
       gameState.matchSessionId = 'match_' + Date.now();
       localStorage.removeItem('chameleon_seat_lock');
+      localStorage.removeItem('chameleon_seat_lock_' + gameState.roomCode);
 
       for (let i = 0; i < count; i++) {
         gameState.players.push({
@@ -1849,10 +2229,20 @@ function jsonResponse(obj) {
     }
 
     function switchView(view) {
+      if (!['home', 'student', 'projector'].includes(view)) return;
+      if (view === 'projector' && !securityState.isTeacherUnlocked) {
+        requestTeacherAccess('projector');
+        return;
+      }
       activeView = view;
       const isStudent = view === 'student';
+      document.getElementById('viewHome').classList.toggle('hidden', view !== 'home');
       document.getElementById('viewStudent').classList.toggle('hidden', !isStudent);
-      document.getElementById('viewProjector').classList.toggle('hidden', isStudent);
+      document.getElementById('viewProjector').classList.toggle('hidden', view !== 'projector');
+      if (view !== 'projector') {
+        dashboardEditing = false;
+        applyDashboardLayout();
+      }
 
       const tabS = document.getElementById('tabStudent');
       const tabP = document.getElementById('tabProjector');
@@ -1909,11 +2299,12 @@ function jsonResponse(obj) {
       }
 
       // Check if this Chromebook is already locked to a DIFFERENT student seat in this session
-      const rawLock = localStorage.getItem('chameleon_seat_lock');
+      const rawLock = localStorage.getItem('chameleon_seat_lock_' + code) ||
+        localStorage.getItem('chameleon_seat_lock');
       if (rawLock && !securityState.isTeacherUnlocked) {
         try {
           const lock = JSON.parse(rawLock);
-          if (lock.matchSessionId === gameState.matchSessionId && lock.name.toLowerCase() !== name.toLowerCase()) {
+          if (lock.roomCode === code && lock.matchSessionId === gameState.matchSessionId && lock.name.toLowerCase() !== name.toLowerCase()) {
             playTone('dramatic');
             showToast(`🔒 This Chromebook is already locked to ${lock.name}! Ask your teacher if you need a seat reset.`);
             return;
@@ -2029,6 +2420,7 @@ function jsonResponse(obj) {
 
     function clearStudentSeatLockAndLeave() {
       localStorage.removeItem('chameleon_seat_lock');
+      localStorage.removeItem('chameleon_seat_lock_' + gameState.roomCode);
       studentSession.joined = false;
       studentSession.peeking = false;
       document.getElementById('studentJoinCard').classList.remove('hidden');
@@ -2232,13 +2624,13 @@ function jsonResponse(obj) {
         showToast('Add players or invite students before starting the game.');
         return;
       }
-      const order = gameState.spatialMode
-        ? ['lobby', 'dusk', 'night', 'morning', 'voting']
-        : ['lobby', 'night', 'morning', 'voting'];
-
       if (gameState.phase === 'lobby') {
         // Assign fresh roles if starting from lobby
         assignRolesToCurrentPlayers();
+        setPhase(gameState.spatialMode ? 'dusk' : 'night');
+        return;
+      }
+      if (gameState.phase === 'lobby_between') {
         setPhase(gameState.spatialMode ? 'dusk' : 'night');
         return;
       }
@@ -2412,6 +2804,7 @@ function jsonResponse(obj) {
         gameState.phase = 'gameover';
         gameState.announcement = `🎉 VICTORY FOR ${t.goodPlural.toUpperCase()}! The class reached 100% on ${t.taskBarName} and neutralized the threat!`;
         playTone('success');
+        recordGameResult();
         return true;
       }
 
@@ -2419,6 +2812,7 @@ function jsonResponse(obj) {
         gameState.phase = 'gameover';
         gameState.announcement = `🎉 VICTORY FOR ${t.goodPlural.toUpperCase()}! All ${t.badPlural} have been uncovered and banished!`;
         playTone('success');
+        recordGameResult();
         return true;
       }
 
@@ -2427,9 +2821,19 @@ function jsonResponse(obj) {
         const badNames = gameState.players.filter(p => p.role === 'IMPACTOR').map(p => p.name).join(', ');
         gameState.announcement = `💀 ${t.badPlural.toUpperCase()} WIN! They have overtaken the ${t.goodPlural}. The secret ${t.badPlural} were: <strong>${badNames}</strong>!`;
         playTone('dramatic');
+        recordGameResult();
         return true;
       }
       return false;
+    }
+
+    function recordGameResult() {
+      gameState.timerPaused = true;
+      gameState.lastResult = {
+        matchSessionId: gameState.matchSessionId,
+        endedAt: Date.now(),
+        text: gameState.announcement.replace(/<[^>]*>/g, '')
+      };
     }
 
     /* ==========================================================================
@@ -2556,6 +2960,7 @@ function jsonResponse(obj) {
         select.appendChild(option);
       });
       select.value = selected;
+      renderHome();
     }
 
     function confirmRemovePlayers(botsOnly) {
@@ -2651,32 +3056,11 @@ function jsonResponse(obj) {
 
     function applyRoomCodeChange() {
       const code = (document.getElementById('godRoomCodeInput').value || 'WOLF').trim().toUpperCase();
-      if (writeInFlight || pendingTeacherState) {
-        showToast('Save pending changes before switching rooms. Use Retry connection / save.');
+      if (!/^[A-Z0-9_-]{1,8}$/.test(code)) {
+        showToast('Use 1–8 letters, numbers, underscores, or hyphens for the room code.');
         return;
       }
-      saveLocalGameState();
-      stateGeneration++;
-      // A room change opens that room, rather than copying the old roster into it.
-      gameState.roomCode = code;
-      gameState.players = [];
-      gameState.phase = 'lobby';
-      gameState.round = 1;
-      gameState.taskProgress = 12;
-      gameState.announcement = 'Invite students or add players to this room, then start the game.';
-      gameState.lastHauntEvent = null;
-      gameState.timerSeconds = 45;
-      gameState.phaseEndTime = Date.now() + 45000;
-      gameState.timerPaused = true;
-      gameState.matchSessionId = 'match_' + Date.now();
-      restoreLocalGameState(code);
-      studentSession.joined = false;
-      syncStatus = 'Not connected';
-      sharedRoomExists = null;
-      document.getElementById('studentRoomInput').value = code;
-      showToast(`Room / Seed Code updated to ${code}`);
-      renderAll();
-      if (gameState.networkMode === 'sheets') retryLiveSync();
+      selectGroup(code);
     }
 
     function assignRolesToCurrentPlayers() {
@@ -2686,6 +3070,7 @@ function jsonResponse(obj) {
       const roles = computeDeterministicRoles(seedKey, gameState.players.length, gameState.impostorCount);
       gameState.matchSessionId = 'match_' + Date.now();
       localStorage.removeItem('chameleon_seat_lock');
+      localStorage.removeItem('chameleon_seat_lock_' + gameState.roomCode);
 
       gameState.players.forEach((p, idx) => {
         p.role = roles[idx];
@@ -2694,6 +3079,7 @@ function jsonResponse(obj) {
         p.location = null;
         p.nightTarget = null;
         p.voteTarget = null;
+        p.hauntTarget = null;
         p.haunted = false;
         p.hauntCount = 0;
       });
@@ -2704,6 +3090,9 @@ function jsonResponse(obj) {
       gameState.phase = 'lobby';
       gameState.round = 1;
       gameState.taskProgress = 10;
+      gameState.lastHauntEvent = null;
+      studentSession.joined = false;
+      studentSession.peeking = false;
       setAuthoritativeTimer(45, true);
       gameState.announcement = `🎲 Roles have been freshly shuffled for ${gameState.players.length} players and seat locks reset! Click START GAME when ready.`;
       playTone('phase');
@@ -2948,13 +3337,27 @@ function jsonResponse(obj) {
       renderStudentView();
       saveLocalGameState();
       renderTeacherSetup();
+      applyDashboardLayout();
     }
 
     function updateProjectorTimerUI() {
+      if (!gameState.timerPaused)
+        gameState.timerSeconds = Math.max(0, Math.ceil((gameState.phaseEndTime - Date.now()) / 1000));
       const m = String(Math.floor(gameState.timerSeconds / 60)).padStart(2, '0');
       const s = String(gameState.timerSeconds % 60).padStart(2, '0');
       const el = document.getElementById('projTimerDisplay');
       if (el) el.textContent = `${m}:${s}`;
+      document.getElementById('studentTimerDisplay').textContent = `${m}:${s}`;
+      document.getElementById('studentTimerStatus').textContent = gameState.phase === 'gameover'
+        ? 'Game ended' : gameState.phase === 'lobby' ? 'Waiting for start'
+          : gameState.timerSeconds === 0 ? "Time's up" : gameState.timerPaused ? 'Paused' : 'Time remaining';
+      const key = `${gameState.matchSessionId}_${gameState.phaseStateId}_${gameState.phaseEndTime}`;
+      if (!gameState.timerPaused && gameState.timerSeconds === 0 && previousTimerRemaining > 0 && timerAlarmKey !== key) {
+        timerAlarmKey = key;
+        if (securityState.isTeacherUnlocked && activeView !== 'student') playTone('timer-end');
+        showToast("Time's up!");
+      }
+      previousTimerRemaining = gameState.timerSeconds;
     }
 
     function renderProjectorView() {
@@ -2981,7 +3384,8 @@ function jsonResponse(obj) {
       // Next Phase Button Label
       const nextBtnLabel = document.getElementById('btnNextPhaseLabel');
       if (gameState.phase === 'lobby' || gameState.phase === 'lobby_between') {
-        nextBtnLabel.textContent = gameState.spatialMode ? 'START DUSK (PICK ROOMS)' : 'START NIGHT PHASE';
+        nextBtnLabel.textContent = gameState.phase === 'lobby'
+          ? 'START GAME' : 'START NEXT ROUND';
       } else if (gameState.phase === 'dusk') {
         nextBtnLabel.textContent = 'START NIGHT PHASE';
       } else if (gameState.phase === 'night') {
@@ -3099,6 +3503,8 @@ function jsonResponse(obj) {
     }
 
     function renderStudentView() {
+      document.getElementById('studentJoinCard').classList.toggle('hidden', studentSession.joined);
+      document.getElementById('studentActiveDashboard').classList.toggle('hidden', !studentSession.joined);
       if (!studentSession.joined) return;
       const p = getActiveStudentPlayer();
       if (!p) {
