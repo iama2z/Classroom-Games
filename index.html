@@ -476,7 +476,7 @@
                 🔗 Student Link
               </button>
               <button onclick="toggleGodDrawer()" class="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold hover:bg-amber-500/30 transition">
-                👑 Teacher Controls
+                👑 Teacher Dashboard
               </button>
             </div>
           </div>
@@ -530,12 +530,15 @@
           <button onclick="advanceToNextPhase()" id="btnNextPhaseMain" class="w-full py-3 px-4 rounded-xl font-bold text-sm sm:text-base theme-accent-btn flex items-center justify-center gap-2">
             <span>▶️</span> <span id="btnNextPhaseLabel">START GAME (DUSK)</span>
           </button>
+          <details class="text-xs">
+            <summary class="cursor-pointer opacity-75">Advanced: jump to a phase</summary>
           <div class="grid grid-cols-2 gap-1.5 pt-1">
             <button onclick="setPhase('dusk')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">1. Dusk Rooms</button>
             <button onclick="setPhase('night')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">2. Night Actions</button>
             <button onclick="setPhase('morning')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">3. Morning News</button>
             <button onclick="setPhase('voting')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">4. Day Voting</button>
           </div>
+          </details>
         </div>
       </div>
 
@@ -547,35 +550,79 @@
           <div class="flex items-center gap-2">
             <span class="text-xl">👑</span>
             <div>
-              <h3 class="font-bold text-base text-amber-300">Teacher "God Mode" Control Center</h3>
-              <p class="text-xs opacity-75">Configure game rules, switch network mode, simulate bots, or override player states.</p>
+              <h3 class="font-bold text-base text-amber-300">Teacher Dashboard</h3>
+              <p class="text-xs opacity-75">Choose a mode, prepare your roster, then invite students. Changes save automatically.</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="toggleRevealRolesOnGodPanel()" id="btnToggleSpyRoles" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30">
-              👁️ Show Secret Roles (Teacher Eyes Only)
-            </button>
             <button onclick="toggleGodDrawer()" class="px-3 py-1.5 rounded-lg text-xs bg-white/10 hover:bg-white/20">
               Close ✕
             </button>
           </div>
         </div>
 
-        <!-- Settings Grid -->
+        <div class="p-3 rounded-xl bg-black/40 border border-white/15 space-y-1" role="status" aria-live="polite">
+          <p id="teacherSetupStatus" class="text-sm font-bold"></p>
+          <p id="teacherSetupNext" class="text-xs opacity-80"></p>
+          <p id="teacherSaveStatus" class="text-xs opacity-80"></p>
+          <p class="text-xs opacity-70">Refresh restores this room on the same browser and site address. Clearing browser data removes the local copy. In Live Classroom, wait for spreadsheet confirmation so other devices can resume the shared game too.</p>
+          <button onclick="retryLiveSync()" id="retrySyncBtn" class="hidden px-3 py-1 rounded bg-white/15 text-xs">Retry connection / save</button>
+        </div>
+
+        <!-- Guided setup -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           
           <!-- 1. Network & Backend Mode -->
           <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
-            <div class="text-xs font-bold uppercase tracking-wider text-emerald-300">1. Network / Sync Mode</div>
+            <div class="text-xs font-bold uppercase tracking-wider text-emerald-300">1. Choose play mode</div>
             <select id="godNetworkModeSelect" onchange="setNetworkMode(this.value)" class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-xs font-semibold">
-              <option value="sim">🤖 Classroom Bot Simulator (Instant Test)</option>
-              <option value="sheets">🟢 Live Google Sheets API Sync</option>
-              <option value="seed">🛡️ Offline Deterministic Seed Mode (Zero Wi-Fi)</option>
+              <option value="sim">🤖 Practice with Bots</option>
+              <option value="sheets">🟢 Live Classroom (Google Sheets)</option>
+              <option value="seed">🛡️ Offline Seed Mode</option>
             </select>
             <p id="godNetworkModeHint" class="text-[11px] opacity-75">
               Bot Simulator lets you test all phases with AI students right now—or open Student View to play alongside bots!
             </p>
-            <div class="flex gap-2 pt-1">
+            <button onclick="requestTeacherAccess('backend')" class="px-3 py-2 rounded-lg bg-white/15 text-xs">Configure spreadsheet connection</button>
+            <button onclick="pushStateToGoogleSheetIfNeeded()" id="publishRosterBtn" class="hidden px-3 py-2 rounded-lg bg-white/15 text-xs">Create shared room with this roster</button>
+            <p class="text-xs opacity-75">Live mode first loads an existing shared room. For a new room, review the roster, then publish it. Publishing replaces that room's saved state.</p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300">2. Prepare roster</div>
+            <p id="teacherRosterCount" class="text-sm"></p>
+            <p class="text-xs opacity-75">Switching modes keeps your players. Remove practice bots for a student-only class, or keep them for testing. Eliminated players stay in the game as ghosts; Remove deletes their seat.</p>
+            <button onclick="confirmRemovePlayers(true)" class="px-3 py-2 rounded-lg bg-white/15 text-xs">Remove practice bots</button>
+            <button onclick="addCustomPlayerPrompt()" class="px-3 py-2 rounded-lg bg-white/15 text-xs">Add student</button>
+            <label for="removePlayerSelect" class="block text-xs">Remove a specific player:</label>
+            <select id="removePlayerSelect" class="w-full px-2 py-2 rounded bg-black/60 border border-white/20 text-xs"></select>
+            <button onclick="confirmRemovePlayers(false)" class="px-3 py-2 rounded-lg bg-red-500/20 text-xs">Remove selected player</button>
+          </div>
+
+          <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-300">3. Invite and start</div>
+            <label for="godRoomCodeInput" class="block text-xs">Room / seed code</label>
+            <div class="flex gap-1">
+              <input id="godRoomCodeInput" type="text" value="WOLF" maxlength="8" class="w-full px-2 py-1 rounded-lg bg-black/60 border border-white/20 font-mono text-xs uppercase" />
+              <button onclick="applyRoomCodeChange()" class="px-2 py-1 rounded-lg bg-white/15 text-xs">Set</button>
+            </div>
+            <button onclick="copyStudentLockedLink()" class="px-3 py-2 rounded-lg bg-cyan-500/20 text-xs">Copy student link</button>
+            <p class="text-xs opacity-75">Share the link, check the roster as students join, then use Start Game in the Phase Director above. Starting a new match shuffles roles.</p>
+            <p class="text-xs opacity-75">Setting another room code opens that room's saved game (or an empty roster for a new code); it does not rename or copy this match.</p>
+            <p class="text-xs opacity-75">Offline Seed Mode: give everyone the same code, class size, and a different seat number. Devices do not sync.</p>
+          </div>
+        </div>
+
+        <details class="space-y-3">
+          <summary class="cursor-pointer font-bold text-sm">Advanced / Testing: rules, PIN, bots, and resets</summary>
+          <button onclick="toggleRevealRolesOnGodPanel()" id="btnToggleSpyRoles" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30">
+            👁️ Show Secret Roles (Teacher Eyes Only)
+          </button>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3">
+          <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
+            <div class="text-xs font-bold">Practice bots</div>
+            <p class="text-xs opacity-75">Loading bots replaces the whole roster and resets the match.</p>
+            <div class="flex flex-wrap gap-2 pt-1">
               <button onclick="populateSimulatedClass(12)" class="text-xs px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20">Reset 12 Bots</button>
               <button onclick="populateSimulatedClass(24)" class="text-xs px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20">24 Bots</button>
               <button onclick="simulateBotActionsForCurrentPhase()" class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">⚡ Trigger Bot Moves</button>
@@ -584,7 +631,7 @@
 
           <!-- 2. Spatial Rooms vs Classic Rules Toggle -->
           <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
-            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300">2. Gameplay Ruleset</div>
+            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300">Gameplay rules</div>
             <select id="godSpatialModeSelect" onchange="setSpatialMode(this.value === 'spatial')" class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-xs font-semibold">
               <option value="spatial">🗺️ Spatial Locations Mode (Dusk Room Alibis)</option>
               <option value="classic">🎭 Classic Deduction Mode (No Rooms)</option>
@@ -595,21 +642,14 @@
             </div>
             <div class="flex items-center justify-between text-xs">
               <span>Require Same-Room Attack?</span>
-              <input id="godSameRoomKillToggle" type="checkbox" class="w-4 h-4 accent-amber-500" />
+              <input id="godSameRoomKillToggle" type="checkbox" onchange="setSameRoomKillOnly(this.checked)" class="w-4 h-4 accent-amber-500" />
             </div>
           </div>
 
           <!-- 3. Match Reset & Offline Seed Config -->
           <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
-            <div class="text-xs font-bold uppercase tracking-wider text-amber-300">3. Security, PIN & Session Reset</div>
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-300">PIN and match reset</div>
             <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-[10px] opacity-70 mb-0.5">Room / Seed Code</label>
-                <div class="flex gap-1">
-                  <input id="godRoomCodeInput" type="text" value="WOLF" maxlength="8" class="w-full px-2 py-1 rounded-lg bg-black/60 border border-white/20 font-mono text-xs uppercase" placeholder="WOLF" />
-                  <button onclick="applyRoomCodeChange()" class="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold hover:bg-white/25">Set</button>
-                </div>
-              </div>
               <div>
                 <label class="block text-[10px] opacity-70 mb-0.5">Teacher PIN</label>
                 <div class="flex gap-1">
@@ -618,6 +658,9 @@
                 </div>
               </div>
             </div>
+            <p class="text-[10px] leading-snug opacity-70">
+              🔐 Change the PIN here and press Save; no code editing needed. It is saved only in this browser, not shared with student devices. This is a local screen lock, not server authentication. Use at least 4 hard-to-guess characters.
+            </p>
             <div class="grid grid-cols-2 gap-2 pt-1">
               <button onclick="assignRolesAndStartNewMatch()" class="py-2 px-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold hover:bg-amber-500/30">
                 🎲 Re-Roll & Unlock Seats
@@ -629,6 +672,7 @@
           </div>
 
         </div>
+        </details>
       </div>
 
       <!-- ====================================================================
@@ -705,7 +749,7 @@
       </div>
 
       <div>
-        <label class="block text-xs font-bold uppercase tracking-wider opacity-80 mb-1">Enter Teacher PIN (Default: 1234)</label>
+        <label class="block text-xs font-bold uppercase tracking-wider opacity-80 mb-1">Enter Teacher PIN</label>
         <input id="pinModalInput" type="password" maxlength="8" placeholder="••••" onkeydown="if(event.key==='Enter') verifyTeacherPin()" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 font-mono text-xl tracking-widest text-center focus:outline-none focus:border-amber-400" />
       </div>
 
@@ -751,6 +795,7 @@
             <li>Set <em>Execute as:</em> <strong>Me</strong>, and <em>Who has access:</em> <strong>Anyone</strong> (so students don't need to log in).</li>
             <li>Copy the <strong>Web app URL</strong> (`https://script.google.com/macros/s/.../exec`) and paste it into the box above!</li>
           </ol>
+          <p class="text-xs opacity-80"><strong>Updating an existing setup:</strong> replace Code.gs with the script below, save, then use Deploy &rarr; Manage deployments &rarr; Edit &rarr; New version &rarr; Deploy to keep the same URL. This version avoids reusing occupied seat numbers after players are removed. Do not clear the script properties; they hold your shared rooms.</p>
         </div>
 
         <div class="space-y-1.5">
@@ -802,7 +847,7 @@ function handleRequest(e) {
       if (!player && body.joinIfMissing && body.name) {
         player = {
           id: body.playerId || ('p_' + new Date().getTime()),
-          seat: state.players.length + 1,
+          seat: Math.max.apply(null, [0].concat(state.players.map(function(p) { return Number(p.seat) || 0; }))) + 1,
           name: body.name,
           alive: true,
           role: 'CITIZEN',
@@ -888,6 +933,16 @@ function jsonResponse(obj) {
   <!-- ==========================================================================
        TOAST NOTIFICATION CONTAINER
        ========================================================================== -->
+  <div id="removePlayersModal" role="dialog" aria-modal="true" aria-labelledby="removePlayersTitle" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hidden">
+    <div class="theme-card rounded-2xl max-w-sm w-full p-5 space-y-4">
+      <h3 id="removePlayersTitle" class="font-bold">Remove players?</h3>
+      <p id="removePlayersMessage" class="text-sm"></p>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('removePlayersModal')" class="px-3 py-2 rounded bg-white/10">Cancel</button>
+        <button onclick="removeConfirmedPlayers()" class="px-3 py-2 rounded bg-red-500/30">Remove</button>
+      </div>
+    </div>
+  </div>
   <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>
 
   <!-- ==========================================================================
@@ -1158,6 +1213,23 @@ function jsonResponse(obj) {
     let timerInterval = null;
     let syncInterval = null;
     let gasWebAppUrl = localStorage.getItem('chameleon_gas_url') || '';
+    let activeView = 'projector';
+    let storageError = false;
+    let syncStatus = 'Not connected';
+    let sharedRoomExists = null;
+    let pendingTeacherState = null;
+    let writeInFlight = false;
+    let readInFlight = false;
+    let stateGeneration = 0;
+    let pendingRemovalIds = [];
+
+    // Haunt pacing: a haunt plays a brief animation then clears itself, and each
+    // device can only trigger a new haunt after a short cooldown so eliminated
+    // students can't spam the projector.
+    const HAUNT_COOLDOWN_MS = 6000;
+    const HAUNT_DISPLAY_MS = 3200;
+    let lastHauntTriggeredAt = 0;
+    let hauntClearTimer = null;
 
     /* ==========================================================================
        3. WEB AUDIO API SYNTHESIZER + 6 PROCEDURAL SPOOKY HAUNT SOUNDS
@@ -1410,9 +1482,84 @@ function jsonResponse(obj) {
     }
 
     /* ==========================================================================
+       4B. LOCAL STATE PERSISTENCE (RESUME AFTER A PAGE REFRESH)
+       Snapshots the full game state to localStorage, keyed by room code, so an
+       accidental projector/teacher refresh (or a student reload) returns to
+       exactly where the class left off.
+       ========================================================================== */
+    const LOCAL_STATE_PREFIX = 'chameleon_state_';
+
+    function localStateKeyFor(room) {
+      return LOCAL_STATE_PREFIX + (room || 'WOLF').toUpperCase();
+    }
+
+    function saveLocalGameState() {
+      try {
+        localStorage.setItem('chameleon_last_room', gameState.roomCode);
+        localStorage.setItem(localStateKeyFor(gameState.roomCode), JSON.stringify({
+          savedAt: Date.now(),
+          state: gameState,
+          view: activeView,
+          pendingTeacherState
+        }));
+        storageError = false;
+      } catch (e) {
+        console.error('Unable to save the local game session', e);
+        if (!storageError) showToast('Cannot save in this browser. Check storage permissions before refreshing.');
+        storageError = true;
+      }
+    }
+
+    function restoreLocalGameState(room) {
+      try {
+        const raw = localStorage.getItem(localStateKeyFor(room));
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.state || !Array.isArray(parsed.state.players) ||
+            parsed.state.roomCode !== room || !THEMES[parsed.state.theme]) throw new Error('Invalid saved session');
+        gameState = { ...gameState, ...parsed.state };
+        normalizePlayerSeats();
+        pendingTeacherState = parsed.pendingTeacherState || null;
+        activeView = parsed.view === 'student' ? 'student' : 'projector';
+        // phaseEndTime is an absolute timestamp, so the countdown naturally
+        // resumes from the correct remaining time after a refresh.
+        localTimerTracker.lastSeenPhase = gameState.phase;
+        localTimerTracker.lastSeenPhaseStateId = gameState.phaseStateId;
+        return true;
+      } catch (e) {
+        console.error('Unable to restore the saved game session', e);
+        showToast('Saved session could not be restored. Check browser storage.');
+        return false;
+      }
+    }
+
+    function normalizePlayerSeats() {
+      const used = new Set(gameState.players.filter(p => Number.isInteger(p.seat) && p.seat > 0).map(p => p.seat));
+      let next = 1;
+      gameState.players.forEach(p => {
+        if (p.deviceToken) p.isBot = false;
+        if (!Number.isInteger(p.seat) || p.seat < 1) {
+          while (used.has(next)) next++;
+          p.seat = next;
+          used.add(next);
+        }
+      });
+    }
+
+    function nextPlayerSeat() {
+      return Math.max(0, ...gameState.players.map(p => p.seat || 0)) + 1;
+    }
+
+    /* ==========================================================================
        5. INITIALIZATION, URL STUDENT LOCK & FIXED TIMESTAMP TIMER
        ========================================================================== */
-    window.onload = function() {
+    window.onload = async function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedBackend = urlParams.get('backend');
+      if (sharedBackend && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(sharedBackend)) {
+        gasWebAppUrl = sharedBackend;
+        localStorage.setItem('chameleon_gas_url', gasWebAppUrl);
+      }
       if (gasWebAppUrl) {
         document.getElementById('gasUrlInput').value = gasWebAppUrl;
       }
@@ -1433,17 +1580,34 @@ function jsonResponse(obj) {
         }
       });
 
-      populateSimulatedClass(12);
-      setTheme('werewolf');
-
-      // Check if URL has ?mode=student or ?student=1 to auto-lock to Student Chromebook mode
-      const urlParams = new URLSearchParams(window.location.search);
+      // Determine which room to load: URL ?room= > last saved room > default WOLF
       const urlRoom = urlParams.get('room');
-      if (urlRoom) {
-        gameState.roomCode = urlRoom.toUpperCase();
-        document.getElementById('studentRoomInput').value = gameState.roomCode;
-        document.getElementById('godRoomCodeInput').value = gameState.roomCode;
+      const targetRoom = (urlRoom || localStorage.getItem('chameleon_last_room') || 'WOLF').toUpperCase();
+      gameState.roomCode = targetRoom;
+
+      // Resume the saved session for this room after a refresh. Only spin up a
+      // fresh simulated class when there is no saved session to restore, so the
+      // initial sim never overwrites the snapshot we are about to read.
+      const restoredSession = restoreLocalGameState(targetRoom);
+      if (sharedBackend) gameState.networkMode = 'sheets';
+      if (!restoredSession) {
+        if (gasWebAppUrl) gameState.networkMode = 'sheets';
+        else populateSimulatedClass(12);
       }
+      const restoredView = activeView;
+
+      document.getElementById('studentRoomInput').value = gameState.roomCode;
+      document.getElementById('godRoomCodeInput').value = gameState.roomCode;
+      document.getElementById('godImpostorCount').value = gameState.impostorCount;
+      const netSelect = document.getElementById('godNetworkModeSelect');
+      if (netSelect) netSelect.value = gameState.networkMode;
+      setTheme(gameState.theme || 'werewolf', false);
+      updateNetworkUI();
+      refreshSimStudentDropdown();
+      if (restoredSession) {
+        showToast('↩️ Resumed your saved session for Room ' + gameState.roomCode);
+      }
+      renderAll();
 
       if (urlParams.get('mode') === 'student' || urlParams.get('student') === '1') {
         securityState.isTeacherUnlocked = false;
@@ -1452,11 +1616,17 @@ function jsonResponse(obj) {
       } else {
         securityState.isTeacherUnlocked = true;
         updateSecurityLockUI();
-        switchView('projector');
+        switchView(restoredView);
       }
 
       // Check if this Chromebook previously locked into a seat for the active matchSessionId
       restoreLockedStudentSeatIfAny();
+      renderAll();
+
+      window.addEventListener('pagehide', saveLocalGameState);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') saveLocalGameState();
+      });
 
       // FIXED AUTHORITATIVE TIMER LOOP:
       // Computes remaining time from `phaseEndTime` so background polls or re-renders NEVER reset it
@@ -1471,9 +1641,10 @@ function jsonResponse(obj) {
       // Start Google Sheets sync polling loop (active when networkMode === 'sheets')
       syncInterval = setInterval(() => {
         if (gameState.networkMode === 'sheets' && gasWebAppUrl) {
-          pullStateFromGoogleSheet();
+          if (!pendingTeacherState) pullStateFromGoogleSheet();
         }
       }, 3500);
+      if (gameState.networkMode === 'sheets' && gasWebAppUrl) await retryLiveSync();
     };
 
     function setAuthoritativeTimer(seconds, paused = false) {
@@ -1525,10 +1696,15 @@ function jsonResponse(obj) {
     }
 
     function saveTeacherPin() {
-      const newPin = (document.getElementById('godTeacherPinInput').value || '1234').trim();
+      const newPin = (document.getElementById('godTeacherPinInput').value || '').trim();
+      if (newPin.length < 4) {
+        showToast('⚠️ Choose a PIN of at least 4 characters.');
+        document.getElementById('godTeacherPinInput').value = securityState.teacherPin;
+        return;
+      }
       securityState.teacherPin = newPin;
       localStorage.setItem('chameleon_teacher_pin', newPin);
-      showToast(`🔐 Teacher PIN updated to "${newPin}"`);
+      showToast('🔐 Teacher PIN saved on this device.');
     }
 
     function toggleStudentLockSimulation() {
@@ -1536,7 +1712,7 @@ function jsonResponse(obj) {
         securityState.isTeacherUnlocked = false;
         switchView('student');
         updateSecurityLockUI();
-        showToast('🔒 Student Lock Active! Projector & God Mode now require PIN (' + securityState.teacherPin + ').');
+        showToast('🔒 Student Lock Active! Projector & God Mode now require your Teacher PIN.');
       } else {
         requestTeacherAccess('projector');
       }
@@ -1558,7 +1734,7 @@ function jsonResponse(obj) {
 
     function copyStudentLockedLink() {
       const baseUrl = window.location.href.split('?')[0];
-      const studentUrl = `${baseUrl}?mode=student&room=${encodeURIComponent(gameState.roomCode)}`;
+      const studentUrl = `${baseUrl}?mode=student&room=${encodeURIComponent(gameState.roomCode)}${gameState.networkMode === 'sheets' && gasWebAppUrl ? '&backend=' + encodeURIComponent(gasWebAppUrl) : ''}`;
       const tempInput = document.createElement('input');
       tempInput.value = studentUrl;
       document.body.appendChild(tempInput);
@@ -1584,10 +1760,11 @@ function jsonResponse(obj) {
         const raw = localStorage.getItem('chameleon_seat_lock');
         if (!raw) return;
         const lockData = JSON.parse(raw);
-        if (lockData && lockData.matchSessionId === gameState.matchSessionId) {
-          const existing = gameState.players.find(p => p.id === lockData.playerId || p.name.toLowerCase() === (lockData.name || '').toLowerCase());
+        if (lockData && lockData.roomCode === gameState.roomCode && lockData.matchSessionId === gameState.matchSessionId) {
+          const existing = gameState.players.find(p => p.id === lockData.playerId);
           if (existing) {
             studentSession.joined = true;
+            studentSession.isOfflineSeed = existing.id.startsWith('seed_seat_');
             studentSession.playerId = existing.id;
             studentSession.name = existing.name;
             studentSession.seatNumber = existing.seat;
@@ -1654,7 +1831,7 @@ function jsonResponse(obj) {
     /* ==========================================================================
        6. THEME ENGINE & VIEW NAVIGATION
        ========================================================================== */
-    function setTheme(themeKey) {
+    function setTheme(themeKey, publish = true) {
       if (!THEMES[themeKey]) return;
       gameState.theme = themeKey;
       document.body.setAttribute('data-theme', themeKey);
@@ -1668,9 +1845,11 @@ function jsonResponse(obj) {
 
       playTone('click');
       renderAll();
+      if (publish && securityState.isTeacherUnlocked) pushStateToGoogleSheetIfNeeded();
     }
 
     function switchView(view) {
+      activeView = view;
       const isStudent = view === 'student';
       document.getElementById('viewStudent').classList.toggle('hidden', !isStudent);
       document.getElementById('viewProjector').classList.toggle('hidden', isStudent);
@@ -1703,12 +1882,30 @@ function jsonResponse(obj) {
         : 'py-2 rounded-lg opacity-70 hover:opacity-100 transition';
     }
 
-    function joinGameAsStudent() {
+    async function joinGameAsStudent() {
       const code = (document.getElementById('studentRoomInput').value || 'WOLF').trim().toUpperCase();
       const name = (document.getElementById('studentNameInput').value || '').trim();
       if (!name) {
         showToast('Please enter your first name or nickname!');
         return;
+      }
+      if (gameState.networkMode === 'sheets') {
+        if (readInFlight || writeInFlight || pendingTeacherState) {
+          showToast('Wait for the current spreadsheet load or save, then join again.');
+          return;
+        }
+        if (code !== gameState.roomCode) {
+          saveLocalGameState();
+          gameState.roomCode = code;
+          gameState.players = [];
+          stateGeneration++;
+          sharedRoomExists = null;
+        }
+        await pullStateFromGoogleSheet();
+        if (!sharedRoomExists || !syncStatus.startsWith('Connection confirmed')) {
+          showToast('Could not load this live room. Ask your teacher to create it or check the connection.');
+          return;
+        }
       }
 
       // Check if this Chromebook is already locked to a DIFFERENT student seat in this session
@@ -1737,7 +1934,7 @@ function jsonResponse(obj) {
         player.isBot = false;
         player.deviceToken = studentSession.deviceToken;
       } else {
-        const newSeat = gameState.players.length + 1;
+        const newSeat = nextPlayerSeat();
         player = {
           id: 'seat_' + newSeat + '_' + Date.now(),
           seat: newSeat,
@@ -1858,7 +2055,7 @@ function jsonResponse(obj) {
 
     function getActiveStudentPlayer() {
       if (!studentSession.joined) return null;
-      return gameState.players.find(p => p.id === studentSession.playerId) || gameState.players[0];
+      return gameState.players.find(p => p.id === studentSession.playerId) || null;
     }
 
     // Student selects a location at Dusk
@@ -1916,7 +2113,7 @@ function jsonResponse(obj) {
       const p = getActiveStudentPlayer();
       const target = gameState.players.find(x => x.id === targetId);
       if (!p || !target) return;
-      triggerHauntOnPlayer(target.id);
+      if (!triggerHauntOnPlayer(target.id)) return;
       p.hauntTarget = targetId;
       syncStudentActionToBackend({
         playerId: p.id,
@@ -1925,22 +2122,47 @@ function jsonResponse(obj) {
       });
     }
 
-    // Can be called from Ghost Terminal OR by clicking any player's Haunt button on Projector
+    // Can be called from Ghost Terminal OR by clicking any player's Haunt button on Projector.
+    // Returns false (and does nothing) when still within the cooldown window.
     function triggerHauntOnPlayer(targetId) {
       const target = gameState.players.find(x => x.id === targetId);
-      if (!target) return;
+      if (!target) return false;
+
+      const now = Date.now();
+      const remainingCooldown = HAUNT_COOLDOWN_MS - (now - lastHauntTriggeredAt);
+      if (remainingCooldown > 0) {
+        showToast(`👻 Haunt recharging… wait ${Math.ceil(remainingCooldown / 1000)}s`);
+        return false;
+      }
+      lastHauntTriggeredAt = now;
+
       gameState.players.forEach(x => x.haunted = false);
       target.haunted = true;
       target.hauntCount = (target.hauntCount || 0) + 1;
       gameState.lastHauntEvent = {
         targetId: target.id,
         targetName: target.name,
-        timestamp: Date.now()
+        timestamp: now
       };
       localTimerTracker.lastHauntTimestamp = gameState.lastHauntEvent.timestamp;
       playRandomSpookySound(target.name);
       renderAll();
-      pushStateToGoogleSheetIfNeeded();
+      if (securityState.isTeacherUnlocked && !studentSession.joined) pushStateToGoogleSheetIfNeeded();
+
+      // Auto-clear the haunt visual after a brief animation so it doesn't loop forever.
+      scheduleHauntClear(target.id);
+      return true;
+    }
+
+    function scheduleHauntClear(targetId) {
+      if (hauntClearTimer) clearTimeout(hauntClearTimer);
+      hauntClearTimer = setTimeout(() => {
+        const t = gameState.players.find(x => x.id === targetId);
+        if (t) t.haunted = false;
+        gameState.players.forEach(x => x.haunted = false);
+        renderAll();
+        saveLocalGameState();
+      }, HAUNT_DISPLAY_MS);
     }
 
     // Interactive Decoy Keypad Mini-Task (For Citizens & Ghosts so everyone clicks at night!)
@@ -1953,10 +2175,26 @@ function jsonResponse(obj) {
       studentSession.enteredDecoyCode = '';
     }
 
+    // Tasks only count while the phase timer is actively running. Once the
+    // teacher's countdown hits 0 (or is paused), the fortification bar freezes
+    // so a class can't keep grinding the villager win condition after time.
+    const TASK_PROGRESS_PER_SOLVE = 1;
+
+    function isTaskWindowOpen() {
+      if (gameState.timerPaused) return false;
+      return (gameState.phaseEndTime - Date.now()) > 0;
+    }
+
     function pressDecoyKeypad(digit) {
       if (digit === 'CLR') {
         studentSession.enteredDecoyCode = '';
         playTone('click');
+        renderStudentView();
+        return;
+      }
+      if (!isTaskWindowOpen()) {
+        studentSession.enteredDecoyCode = '';
+        showToast("⏳ Time's up — tasks are locked until the next phase!");
         renderStudentView();
         return;
       }
@@ -1965,11 +2203,17 @@ function jsonResponse(obj) {
         playTone('click');
       }
       if (studentSession.enteredDecoyCode.length === 4) {
+        if (!isTaskWindowOpen()) {
+          studentSession.enteredDecoyCode = '';
+          showToast("⏳ Time's up — tasks are locked until the next phase!");
+          renderStudentView();
+          return;
+        }
         if (studentSession.enteredDecoyCode === studentSession.activeDecoyCode) {
-          gameState.taskProgress = Math.min(100, gameState.taskProgress + 5);
+          gameState.taskProgress = Math.min(100, gameState.taskProgress + TASK_PROGRESS_PER_SOLVE);
           playTone('success');
-          showToast('+5% Added to Town Survival Bar!');
-          syncStudentActionToBackend({ playerId: studentSession.playerId, taskDelta: 5 });
+          showToast(`+${TASK_PROGRESS_PER_SOLVE}% Added to Town Survival Bar!`);
+          syncStudentActionToBackend({ playerId: studentSession.playerId, taskDelta: TASK_PROGRESS_PER_SOLVE });
           generateNewDecoyCode();
           checkWinConditions();
         } else {
@@ -1984,6 +2228,10 @@ function jsonResponse(obj) {
        8. TEACHER PHASE DIRECTOR & GAME LOOP ENGINE
        ========================================================================== */
     function advanceToNextPhase() {
+      if (gameState.players.length === 0) {
+        showToast('Add players or invite students before starting the game.');
+        return;
+      }
       const order = gameState.spatialMode
         ? ['lobby', 'dusk', 'night', 'morning', 'voting']
         : ['lobby', 'night', 'morning', 'voting'];
@@ -2247,9 +2495,98 @@ function jsonResponse(obj) {
        10. TEACHER GOD MODE ACTIONS
        ========================================================================== */
     function toggleGodDrawer() {
+      if (!securityState.isTeacherUnlocked) {
+        requestTeacherAccess('projector');
+        return;
+      }
       const drawer = document.getElementById('teacherGodDrawer');
       drawer.classList.toggle('hidden');
       playTone('click');
+    }
+
+    function renderTeacherSetup() {
+      updateNetworkUI();
+      const bots = gameState.players.filter(p => p.isBot).length;
+      const students = gameState.players.length - bots;
+      const live = gameState.networkMode === 'sheets';
+      const mode = live ? 'Live Classroom' : gameState.networkMode === 'sim' ? 'Practice with Bots' : 'Offline Seed Mode';
+      document.getElementById('teacherSetupStatus').textContent =
+        `${mode} | Room ${gameState.roomCode} | ${students} students | ${bots} practice bots`;
+      document.getElementById('teacherRosterCount').textContent = `${students} students and ${bots} practice bots`;
+      document.getElementById('godNetworkModeHint').textContent = live
+        ? 'Students share a room through your spreadsheet. Selecting this mode alone does not confirm a connection or remove bots.'
+        : gameState.networkMode === 'sim'
+          ? 'Practice locally with bots. Student devices do not share this practice session.'
+          : 'Everyone uses the same seed and class size with unique seats; actions are not synchronized.';
+      document.getElementById('teacherSetupNext').textContent = live && !gasWebAppUrl
+        ? 'Next: configure the spreadsheet URL in step 1.'
+        : live && bots
+          ? 'Next: remove practice bots for a student-only class, or keep them for testing.'
+          : gameState.players.length === 0
+            ? 'Next: invite students or add players. The roster is empty.'
+            : gameState.phase === 'lobby'
+              ? (live ? 'Next: check the roster, invite students, then Start Game in the Phase Director.'
+                : 'Next: use Start Game to practice with this roster. Choose Live Classroom for shared student devices.')
+              : 'Game in progress. Use the Phase Director above to continue.';
+      document.getElementById('teacherSaveStatus').textContent = storageError
+        ? 'Browser save failed. Refresh may lose changes.'
+        : (live ? syncStatus : 'Saved on this browser; refresh resumes this room.') +
+          (pendingTeacherState ? ' Changes awaiting spreadsheet confirmation.' : '');
+      document.getElementById('retrySyncBtn').classList.toggle('hidden', !live || !gasWebAppUrl);
+      document.getElementById('publishRosterBtn').classList.toggle('hidden', !live || sharedRoomExists !== false);
+      document.getElementById('godSpatialModeSelect').value = gameState.spatialMode ? 'spatial' : 'classic';
+      document.getElementById('godSameRoomKillToggle').checked = gameState.sameRoomKillOnly;
+      const countInput = document.getElementById('godImpostorCount');
+      const roomInput = document.getElementById('godRoomCodeInput');
+      if (document.activeElement !== countInput) countInput.value = gameState.impostorCount;
+      if (document.activeElement !== roomInput) roomInput.value = gameState.roomCode;
+      document.getElementById('timerPauseBtn').textContent = gameState.timerPaused ? '▶️ Resume' : '⏸️ Pause';
+      document.getElementById('btnNextPhaseMain').disabled = gameState.players.length === 0;
+      const select = document.getElementById('removePlayerSelect');
+      const selected = select.value;
+      select.replaceChildren();
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = 'Choose a player';
+      select.appendChild(empty);
+      gameState.players.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = `#${p.seat} ${p.name} (${p.isBot ? 'bot' : 'student'}, ${p.alive ? 'alive' : 'eliminated'})`;
+        select.appendChild(option);
+      });
+      select.value = selected;
+    }
+
+    function confirmRemovePlayers(botsOnly) {
+      if (!securityState.isTeacherUnlocked) return;
+      pendingRemovalIds = botsOnly ? gameState.players.filter(p => p.isBot).map(p => p.id)
+        : [document.getElementById('removePlayerSelect').value].filter(Boolean);
+      if (!pendingRemovalIds.length) {
+        showToast(botsOnly ? 'No practice bots to remove.' : 'Choose a player first.');
+        return;
+      }
+      document.getElementById('removePlayersMessage').textContent =
+        `Remove ${pendingRemovalIds.length} player(s) from this roster? Their seats and actions will be removed. This is different from elimination and cannot be undone.`;
+      openModal('removePlayersModal');
+    }
+
+    function removeConfirmedPlayers() {
+      if (!securityState.isTeacherUnlocked) return;
+      const ids = new Set(pendingRemovalIds);
+      gameState.players = gameState.players.filter(p => !ids.has(p.id));
+      gameState.players.forEach(p => {
+        ['nightTarget', 'voteTarget', 'hauntTarget'].forEach(key => {
+          if (ids.has(p[key])) p[key] = null;
+        });
+      });
+      if (ids.has(studentSession.playerId)) clearStudentSeatLockAndLeave();
+      pendingRemovalIds = [];
+      closeModal('removePlayersModal');
+      refreshSimStudentDropdown();
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+      showToast('Players removed. The remaining players and match have been kept.');
     }
 
     function toggleRevealRolesOnGodPanel() {
@@ -2262,39 +2599,84 @@ function jsonResponse(obj) {
     }
 
     function setNetworkMode(mode) {
+      if (!securityState.isTeacherUnlocked) return;
       gameState.networkMode = mode;
+      stateGeneration++;
+      syncStatus = 'Not connected';
+      sharedRoomExists = null;
+      updateNetworkUI();
+      renderAll();
+      showToast(mode === 'sheets'
+        ? 'Live Classroom selected. Check the connection and review any practice bots below.'
+        : mode === 'sim' ? 'Practice mode selected. Your roster has been kept.' : 'Offline mode selected. Devices do not sync.');
+      if (mode === 'sheets' && gasWebAppUrl) retryLiveSync();
+    }
+
+    function updateNetworkUI() {
+      const mode = gameState.networkMode;
       const badge = document.getElementById('networkBadge');
+      document.getElementById('godNetworkModeSelect').value = mode;
       if (mode === 'sim') {
-        badge.textContent = '🤖 Sim Mode';
+        badge.textContent = '🤖 Practice with Bots';
         badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
       } else if (mode === 'sheets') {
-        badge.textContent = '🟢 Sheets Live Sync';
+        badge.textContent = 'Live Classroom';
         badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
-        if (!gasWebAppUrl) openModal('backendModal');
       } else {
         badge.textContent = '🛡️ Offline Seed Mode';
         badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40';
       }
-      renderAll();
     }
 
     function setSpatialMode(enabled) {
       gameState.spatialMode = enabled;
       showToast(enabled ? 'Spatial Locations Mode Enabled' : 'Classic Mode Enabled (No Rooms)');
       renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function setSameRoomKillOnly(enabled) {
+      gameState.sameRoomKillOnly = enabled;
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+      showToast(enabled ? 'Same-room attacks required.' : 'Attacks can target any room.');
     }
 
     function updateRoleCounts() {
       const val = parseInt(document.getElementById('godImpostorCount').value, 10) || 2;
       gameState.impostorCount = Math.max(1, Math.min(6, val));
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
     }
 
     function applyRoomCodeChange() {
       const code = (document.getElementById('godRoomCodeInput').value || 'WOLF').trim().toUpperCase();
+      if (writeInFlight || pendingTeacherState) {
+        showToast('Save pending changes before switching rooms. Use Retry connection / save.');
+        return;
+      }
+      saveLocalGameState();
+      stateGeneration++;
+      // A room change opens that room, rather than copying the old roster into it.
       gameState.roomCode = code;
+      gameState.players = [];
+      gameState.phase = 'lobby';
+      gameState.round = 1;
+      gameState.taskProgress = 12;
+      gameState.announcement = 'Invite students or add players to this room, then start the game.';
+      gameState.lastHauntEvent = null;
+      gameState.timerSeconds = 45;
+      gameState.phaseEndTime = Date.now() + 45000;
+      gameState.timerPaused = true;
+      gameState.matchSessionId = 'match_' + Date.now();
+      restoreLocalGameState(code);
+      studentSession.joined = false;
+      syncStatus = 'Not connected';
+      sharedRoomExists = null;
       document.getElementById('studentRoomInput').value = code;
       showToast(`Room / Seed Code updated to ${code}`);
       renderAll();
+      if (gameState.networkMode === 'sheets') retryLiveSync();
     }
 
     function assignRolesToCurrentPlayers() {
@@ -2347,6 +2729,7 @@ function jsonResponse(obj) {
       }
       gameState.phaseStateId = (gameState.phaseStateId || 1) + 1;
       document.getElementById('timerPauseBtn').textContent = gameState.timerPaused ? '▶️ Resume' : '⏸️ Pause';
+      renderAll();
       pushStateToGoogleSheetIfNeeded();
     }
 
@@ -2355,27 +2738,8 @@ function jsonResponse(obj) {
       gameState.phaseEndTime = Date.now() + gameState.timerSeconds * 1000;
       gameState.phaseStateId = (gameState.phaseStateId || 1) + 1;
       updateProjectorTimerUI();
-      pushStateToGoogleSheetIfNeeded();
-    }
-
-    function togglePlayerAliveState(playerId) {
-      const p = gameState.players.find(x => x.id === playerId);
-      if (!p) return;
-      p.alive = !p.alive;
-      showToast(`${p.name} is now ${p.alive ? 'ALIVE' : 'ELIMINATED'}`);
-      checkWinConditions();
       renderAll();
       pushStateToGoogleSheetIfNeeded();
-    }
-
-    function toggleTimerPause() {
-      gameState.timerPaused = !gameState.timerPaused;
-      document.getElementById('timerPauseBtn').textContent = gameState.timerPaused ? '▶️ Resume' : '⏸️ Pause';
-    }
-
-    function addTimerSeconds(sec) {
-      gameState.timerSeconds += sec;
-      updateProjectorTimerUI();
     }
 
     function addCustomPlayerPrompt() {
@@ -2386,7 +2750,7 @@ function jsonResponse(obj) {
     function confirmAddCustomPlayer() {
       const name = (document.getElementById('newPlayerNameModalInput').value || '').trim();
       if (!name) return;
-      const newSeat = gameState.players.length + 1;
+      const newSeat = nextPlayerSeat();
       gameState.players.push({
         id: 'seat_' + newSeat + '_' + Date.now(),
         seat: newSeat,
@@ -2403,6 +2767,7 @@ function jsonResponse(obj) {
       closeModal('addPlayerModal');
       refreshSimStudentDropdown();
       renderAll();
+      pushStateToGoogleSheetIfNeeded();
     }
 
     /* ==========================================================================
@@ -2410,12 +2775,14 @@ function jsonResponse(obj) {
        ========================================================================== */
     function saveGasUrl() {
       const url = (document.getElementById('gasUrlInput').value || '').trim();
+      if (url && !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(url)) {
+        showToast('Use the deployed Google Apps Script URL ending in /exec.');
+        return;
+      }
       gasWebAppUrl = url;
       localStorage.setItem('chameleon_gas_url', url);
       if (url) {
         setNetworkMode('sheets');
-        pushStateToGoogleSheetIfNeeded();
-        showToast('Connected to Google Sheets Web App!');
       } else {
         setNetworkMode('sim');
         showToast('Cleared URL. Switched to Bot Simulator Mode.');
@@ -2424,19 +2791,83 @@ function jsonResponse(obj) {
     }
 
     async function pushStateToGoogleSheetIfNeeded() {
-      if (gameState.networkMode !== 'sheets' || !gasWebAppUrl) return;
+      saveLocalGameState();
+      if (gameState.networkMode !== 'sheets' || !securityState.isTeacherUnlocked) return;
+      stateGeneration++;
+      gameState.clientMutationId = studentSession.deviceToken + '_' + Date.now() + '_' + stateGeneration;
+      pendingTeacherState = JSON.parse(JSON.stringify(gameState));
+      saveLocalGameState();
+      renderTeacherSetup();
+      await flushPendingTeacherState();
+    }
+
+    async function readRemoteState(url, room) {
+      const res = await fetch(`${url}?action=getState&room=${encodeURIComponent(room)}&_=${Date.now()}`, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) throw new Error('Spreadsheet request failed: ' + res.status);
+      const data = await res.json();
+      if (!data || data.ok === false) throw new Error(data?.error || 'Invalid spreadsheet response');
+      if (data.state && (!Array.isArray(data.state.players) || data.state.roomCode !== room ||
+          !THEMES[data.state.theme])) throw new Error('Invalid room state from spreadsheet');
+      return data.state || null;
+    }
+
+    async function flushPendingTeacherState() {
+      if (writeInFlight || !pendingTeacherState || gameState.networkMode !== 'sheets') return;
+      if (!gasWebAppUrl) {
+        syncStatus = 'Spreadsheet URL needed; changes saved on this browser only';
+        renderTeacherSetup();
+        return;
+      }
+      writeInFlight = true;
       try {
-        await fetch(gasWebAppUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'pushState',
-            room: gameState.roomCode,
-            state: gameState
-          })
-        });
-      } catch (e) {}
+        while (pendingTeacherState && gameState.networkMode === 'sheets') {
+          const snapshot = pendingTeacherState;
+          const url = gasWebAppUrl;
+          syncStatus = 'Saving to spreadsheet...';
+          renderTeacherSetup();
+          await fetch(url, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'pushState', room: snapshot.roomCode, state: snapshot }),
+            signal: AbortSignal.timeout(15000)
+          });
+          // An opaque POST response is not a save acknowledgement. Read back the
+          // mutation ID before allowing polls to replace the local snapshot.
+          let confirmed = false;
+          for (let attempt = 0; attempt < 4; attempt++) {
+            const remote = await readRemoteState(url, snapshot.roomCode);
+            if (remote?.clientMutationId === snapshot.clientMutationId) {
+              confirmed = true;
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 600));
+          }
+          if (!confirmed) throw new Error('Spreadsheet has not confirmed the save');
+          if (pendingTeacherState?.clientMutationId === snapshot.clientMutationId) pendingTeacherState = null;
+          syncStatus = 'Spreadsheet save confirmed';
+          sharedRoomExists = true;
+          saveLocalGameState();
+        }
+      } catch (e) {
+        console.error('Unable to confirm the spreadsheet save', e);
+        syncStatus = 'Save not confirmed; changes kept on this browser. Retry before closing.';
+        showToast('Spreadsheet save not confirmed. Your local changes are kept; use Retry connection / save.');
+      } finally {
+        writeInFlight = false;
+        renderTeacherSetup();
+      }
+    }
+
+    async function retryLiveSync() {
+      if (pendingTeacherState) {
+        if (securityState.isTeacherUnlocked) await flushPendingTeacherState();
+      } else {
+        await pullStateFromGoogleSheet();
+      }
     }
 
     async function syncStudentActionToBackend(payload) {
@@ -2453,35 +2884,35 @@ function jsonResponse(obj) {
             ...payload
           })
         });
-      } catch (e) {}
+        await pullStateFromGoogleSheet();
+      } catch (e) {
+        console.error('Student action could not be sent', e);
+        syncStatus = 'Student action not confirmed; check connection';
+        renderTeacherSetup();
+        showToast('Your action could not be sent. Check the connection and try again.');
+      }
     }
 
     async function pullStateFromGoogleSheet() {
-      if (!gasWebAppUrl) return;
+      if (gameState.networkMode !== 'sheets' || !gasWebAppUrl || pendingTeacherState || readInFlight) return;
+      const room = gameState.roomCode;
+      const url = gasWebAppUrl;
+      const generation = stateGeneration;
+      readInFlight = true;
+      syncStatus = 'Checking spreadsheet...';
+      renderTeacherSetup();
       try {
-        const res = await fetch(`${gasWebAppUrl}?action=getState&room=${encodeURIComponent(gameState.roomCode)}`);
-        const data = await res.json();
-        if (data && data.state && data.state.players) {
-          const remote = data.state;
-
-          // Preserve local smooth countdown UNLESS the teacher actually changed the phase or timer state
-          const phaseChanged = remote.phase !== localTimerTracker.lastSeenPhase ||
-                               remote.phaseStateId !== localTimerTracker.lastSeenPhaseStateId;
-
-          const currentSeconds = gameState.timerSeconds;
-          const currentEndTime = gameState.phaseEndTime;
-          const currentPaused = gameState.timerPaused;
-
-          gameState = { ...gameState, ...remote };
-
-          if (phaseChanged) {
-            localTimerTracker.lastSeenPhase = remote.phase;
-            localTimerTracker.lastSeenPhaseStateId = remote.phaseStateId;
-          } else {
-            gameState.timerSeconds = currentSeconds;
-            gameState.phaseEndTime = currentEndTime;
-            gameState.timerPaused = currentPaused;
-          }
+        const remote = await readRemoteState(url, room);
+        if (generation !== stateGeneration || room !== gameState.roomCode || url !== gasWebAppUrl ||
+            gameState.networkMode !== 'sheets' || pendingTeacherState) return;
+        syncStatus = remote ? 'Connection confirmed; room loaded from spreadsheet' : 'Connection confirmed; no shared room yet. Publish this roster to create it.';
+        sharedRoomExists = Boolean(remote);
+        if (remote) {
+          gameState = { ...gameState, ...remote, networkMode: 'sheets' };
+          normalizePlayerSeats();
+          if (!gameState.timerPaused) gameState.timerSeconds = Math.max(0, Math.ceil((gameState.phaseEndTime - Date.now()) / 1000));
+          localTimerTracker.lastSeenPhase = remote.phase;
+          localTimerTracker.lastSeenPhaseStateId = remote.phaseStateId;
 
           // If a new Ghost Haunt occurred remotely, play a random spooky sound!
           if (remote.lastHauntEvent && remote.lastHauntEvent.timestamp > localTimerTracker.lastHauntTimestamp) {
@@ -2489,9 +2920,16 @@ function jsonResponse(obj) {
             playRandomSpookySound(remote.lastHauntEvent.targetName);
           }
 
-          renderAll();
+          restoreLockedStudentSeatIfAny();
         }
-      } catch (e) {}
+        renderAll();
+      } catch (e) {
+        console.error('Unable to load the live room', e);
+        syncStatus = 'Connection failed; displaying this browser\'s saved copy. Retry to reconnect.';
+      } finally {
+        readInFlight = false;
+        renderTeacherSetup();
+      }
     }
 
     function copyGasCode() {
@@ -2505,8 +2943,11 @@ function jsonResponse(obj) {
        12. UI RENDERING (PROJECTOR & STUDENT CHROMEBOOK VIEWS)
        ========================================================================== */
     function renderAll() {
+      normalizePlayerSeats();
       renderProjectorView();
       renderStudentView();
+      saveLocalGameState();
+      renderTeacherSetup();
     }
 
     function updateProjectorTimerUI() {
@@ -2660,7 +3101,14 @@ function jsonResponse(obj) {
     function renderStudentView() {
       if (!studentSession.joined) return;
       const p = getActiveStudentPlayer();
-      if (!p) return;
+      if (!p) {
+        studentSession.joined = false;
+        studentSession.peeking = false;
+        document.getElementById('studentJoinCard').classList.remove('hidden');
+        document.getElementById('studentActiveDashboard').classList.add('hidden');
+        showToast('Your seat is no longer in this roster. Ask your teacher before rejoining.');
+        return;
+      }
 
       const t = THEMES[gameState.theme];
       const rInfo = t.roles[p.role] || t.roles.CITIZEN;
@@ -2804,7 +3252,7 @@ function jsonResponse(obj) {
                 `).join('')}
               </div>
             </div>
-            ${renderDecoyKeypadHTML('2. Ghost Calibration Task (+5% Town Bar)')}
+            ${renderDecoyKeypadHTML('2. Ghost Calibration Task (+1% Town Bar)')}
           </div>
         `;
         return;
@@ -2829,7 +3277,7 @@ function jsonResponse(obj) {
           </div>
         `;
       } else if (gameState.phase === 'night') {
-        pubCard.innerHTML = renderDecoyKeypadHTML(`⚡ Night Calibration Task (${t.taskBarName} +5%)`);
+        pubCard.innerHTML = renderDecoyKeypadHTML(`⚡ Night Calibration Task (${t.taskBarName} +1%)`);
       } else if (gameState.phase === 'voting') {
         pubCard.innerHTML = `
           <div class="space-y-3">
@@ -2853,7 +3301,7 @@ function jsonResponse(obj) {
               <div class="font-bold text-amber-300">📢 Latest Classroom Bulletin:</div>
               <p>${gameState.announcement}</p>
             </div>
-            ${renderDecoyKeypadHTML('🔧 Practice Calibration Task (+5% Town Bar)')}
+            ${renderDecoyKeypadHTML('🔧 Practice Calibration Task (+1% Town Bar)')}
           </div>
         `;
       }
