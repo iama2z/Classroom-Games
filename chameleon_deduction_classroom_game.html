@@ -1,0 +1,2913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chameleon Deduction — Classroom Multiplayer Engine</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts for the 4 distinct themes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ==========================================================================
+       DYNAMIC THEME ENGINE CSS VARIABLES
+       ========================================================================== */
+    :root {
+      --bg-primary: #0f141c;
+      --bg-secondary: #18202c;
+      --bg-card: #1e293b;
+      --text-primary: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #ef4444;
+      --accent-glow: rgba(239, 68, 68, 0.35);
+      --accent-secondary: #f59e0b;
+      --border-color: #334155;
+      --font-display: 'Cinzel', serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    body[data-theme="werewolf"] {
+      --bg-primary: #0d0b10;
+      --bg-secondary: #17131d;
+      --bg-card: #221c2b;
+      --text-primary: #f5efe6;
+      --text-muted: #a89f91;
+      --accent: #dc2626;
+      --accent-glow: rgba(220, 38, 38, 0.4);
+      --accent-secondary: #d97706;
+      --border-color: #3f334d;
+      --font-display: 'Cinzel', serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    body[data-theme="scifi"] {
+      --bg-primary: #030906;
+      --bg-secondary: #07150f;
+      --bg-card: #0b2219;
+      --text-primary: #d1fae5;
+      --text-muted: #6ee7b7;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.45);
+      --accent-secondary: #06b6d4;
+      --border-color: #047857;
+      --font-display: 'JetBrains Mono', monospace;
+      --font-body: 'JetBrains Mono', monospace;
+    }
+
+    body[data-theme="medieval"] {
+      --bg-primary: #110e1b;
+      --bg-secondary: #1c172e;
+      --bg-card: #261f3d;
+      --text-primary: #fef3c7;
+      --text-muted: #c4b5fd;
+      --accent: #eab308;
+      --accent-glow: rgba(234, 179, 8, 0.4);
+      --accent-secondary: #a855f7;
+      --border-color: #4c3d75;
+      --font-display: 'Cinzel', serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    body[data-theme="biolab"] {
+      --bg-primary: #0b1116;
+      --bg-secondary: #121c24;
+      --bg-card: #1a2833;
+      --text-primary: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #f59e0b;
+      --accent-glow: rgba(245, 158, 11, 0.45);
+      --accent-secondary: #38bdf8;
+      --border-color: #334155;
+      --font-display: 'Inter', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      transition: background-color 0.35s ease, color 0.35s ease;
+      overflow-x: hidden;
+    }
+
+    .font-theme-display {
+      font-family: var(--font-display);
+    }
+
+    .theme-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .theme-panel {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .theme-accent-btn {
+      background-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 15px var(--accent-glow);
+      transition: all 0.2s ease;
+    }
+    body[data-theme="medieval"] .theme-accent-btn,
+    body[data-theme="biolab"] .theme-accent-btn,
+    body[data-theme="scifi"] .theme-accent-btn {
+      color: #050505;
+      font-weight: 700;
+    }
+    .theme-accent-btn:hover {
+      filter: brightness(1.12);
+      transform: translateY(-1px);
+    }
+    .theme-accent-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Sci-Fi CRT scanline overlay when in Sci-Fi theme */
+    body[data-theme="scifi"]::after {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%);
+      background-size: 100% 4px;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+
+    /* Spooky Ghost Haunt Flicker Animation */
+    @keyframes hauntFlicker {
+      0%, 100% { transform: translate(0, 0); filter: hue-rotate(0deg); box-shadow: 0 0 20px #a855f7; }
+      20% { transform: translate(-2px, 1px); filter: invert(0.15) hue-rotate(90deg); }
+      40% { transform: translate(2px, -1px); opacity: 0.7; }
+      60% { transform: translate(-1px, -2px); box-shadow: 0 0 35px #ec4899; }
+      80% { transform: translate(1px, 2px); }
+    }
+    .haunted-card {
+      animation: hauntFlicker 1.2s infinite;
+      border-color: #c084fc !important;
+      cursor: pointer;
+    }
+
+    @keyframes floatGhost {
+      0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+      30% { opacity: 1; transform: translateY(-6px) scale(1.15); }
+      100% { opacity: 0; transform: translateY(-28px) scale(0.95); }
+    }
+    .floating-ghost-badge {
+      animation: floatGhost 1.3s ease-out forwards;
+      pointer-events: none;
+    }
+
+    /* Privacy shield blur */
+    .privacy-blur {
+      filter: blur(18px);
+      user-select: none;
+      pointer-events: none;
+      transition: filter 0.15s ease;
+    }
+    .privacy-revealed {
+      filter: blur(0px);
+      pointer-events: auto;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+  </style>
+</head>
+<body data-theme="werewolf" class="min-h-screen flex flex-col selection:bg-red-500 selection:text-white">
+
+  <!-- ==========================================================================
+       TOP NAVIGATION & QUICK THEME/ROLE BAR
+       ========================================================================== -->
+  <header class="theme-panel sticky top-0 z-40 px-3 sm:px-6 py-2.5 border-b">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <!-- Brand / Title -->
+      <div class="flex items-center gap-2.5">
+        <div id="headerThemeIcon" class="w-9 h-9 rounded-lg flex items-center justify-center text-xl font-bold theme-accent-btn">
+          🐺
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 id="headerTitle" class="font-theme-display font-bold text-base sm:text-lg tracking-wide">
+              SHADOWS OF BLACKWOOD
+            </h1>
+            <span id="networkBadge" class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              🤖 Sim Mode
+            </span>
+          </div>
+          <p id="headerSubtitle" class="text-xs opacity-70 hidden sm:block">
+            Classroom Multiplayer Social Deduction Engine
+          </p>
+        </div>
+      </div>
+
+      <!-- View Switcher (Student / Projector / Setup) -->
+      <div class="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10">
+        <button onclick="switchView('student')" id="tabStudent" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+          <span>📱</span> <span>Student View</span>
+        </button>
+        <button onclick="requestTeacherAccess('projector')" id="tabProjector" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+          <span>📽️</span> <span>Projector + Teacher</span>
+        </button>
+        <button onclick="requestTeacherAccess('backend')" id="tabBackendBtn" class="px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold hover:bg-white/10 transition flex items-center gap-1" title="Google Sheets Backend Setup">
+          <span>⚙️</span> <span class="hidden md:inline">Sheet API</span>
+        </button>
+        <button onclick="toggleStudentLockSimulation()" id="btnLockSimToggle" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1" title="Test how students see the locked screen">
+          <span>🔓</span> <span class="hidden lg:inline" id="lockSimLabel">Teacher Unlocked</span>
+        </button>
+      </div>
+
+      <!-- Instant Theme Switcher + Sound Toggle -->
+      <div class="flex items-center gap-1.5">
+        <select id="quickThemeSelect" onchange="setTheme(this.value)" aria-label="Select Game Theme" class="bg-black/40 text-xs sm:text-sm font-medium px-2.5 py-1.5 rounded-lg border border-white/15 focus:outline-none">
+          <option value="werewolf">🐺 Classic Werewolf</option>
+          <option value="scifi">🚀 Outpost 8 (Sci-Fi)</option>
+          <option value="medieval">🏰 Royal Court Intrigue</option>
+          <option value="biolab">🧬 Bio-Lab Lockdown</option>
+        </select>
+
+        <button onclick="playRandomSpookySound('Test Haunt')" class="px-2.5 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-200 text-xs font-semibold hover:bg-purple-500/30 transition flex items-center gap-1" title="Test Random Spooky Haunt Sound">
+          <span>👻</span> <span class="hidden sm:inline">Spooky SFX</span>
+        </button>
+
+        <button onclick="toggleSound()" id="soundToggleBtn" class="p-2 rounded-lg bg-black/40 border border-white/15 text-xs hover:bg-white/10" title="Toggle Sound Effects">
+          🔊
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MAIN CONTENT CONTAINER
+       ========================================================================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
+
+    <!-- ========================================================================
+         VIEW 1: STUDENT CHROMEBOOK CONTROLLER VIEW
+         ======================================================================== -->
+    <section id="viewStudent" class="max-w-lg mx-auto space-y-4">
+      
+      <!-- Student Join / Login Card -->
+      <div id="studentJoinCard" class="theme-card rounded-2xl p-5 sm:p-6 space-y-5">
+        <div class="text-center space-y-1">
+          <span id="studentWelcomeEmoji" class="text-4xl">🐺</span>
+          <h2 class="font-theme-display text-2xl font-bold" id="studentJoinTitle">JOIN THE VILLAGE</h2>
+          <p class="text-xs sm:text-sm opacity-75" id="studentJoinDesc">
+            Enter your Room Code and Name (or switch to Offline Seed Mode if instructed by your teacher).
+          </p>
+        </div>
+
+        <!-- Connection Mode Tabs for Student -->
+        <div class="grid grid-cols-2 gap-2 p-1 bg-black/40 rounded-xl border border-white/10 text-xs font-semibold">
+          <button onclick="setStudentJoinMode('live')" id="btnJoinModeLive" class="py-2 rounded-lg bg-white/15 text-white transition">
+            🟢 Live Room Join
+          </button>
+          <button onclick="setStudentJoinMode('seed')" id="btnJoinModeSeed" class="py-2 rounded-lg opacity-70 hover:opacity-100 transition">
+            🛡️ Offline Seed Code
+          </button>
+        </div>
+
+        <!-- Live / Simulator Join Inputs -->
+        <div id="studentLiveJoinFields" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">Room Code</label>
+            <input id="studentRoomInput" type="text" value="WOLF" maxlength="8" placeholder="e.g. WOLF" class="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/20 font-mono text-lg uppercase tracking-widest text-center focus:outline-none focus:border-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">Your First Name / Nickname</label>
+            <input id="studentNameInput" type="text" maxlength="16" placeholder="e.g. Alex" class="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/20 text-base focus:outline-none focus:border-white" />
+          </div>
+          <!-- Quick Seat Picker if testing in Simulator Mode -->
+          <div id="simStudentPickerWrap" class="pt-1">
+            <label class="block text-[11px] opacity-75 mb-1">Testing on 1 screen? Pick any simulated student seat:</label>
+            <select id="simStudentQuickSelect" onchange="selectSimulatedStudent(this.value)" class="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs">
+              <option value="">-- Or type your own name above --</option>
+            </select>
+          </div>
+          <button onclick="joinGameAsStudent()" class="w-full py-3 rounded-xl font-bold text-base theme-accent-btn">
+            JOIN GAME SESSION
+          </button>
+        </div>
+
+        <!-- Offline Deterministic Seed Join Inputs -->
+        <div id="studentSeedJoinFields" class="space-y-3 hidden">
+          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
+            <strong>🛡️ Zero-Wi-Fi Seed Mode:</strong> Look at the Projector for the Match Seed Code and the Player Number (#1–#30) assigned by your teacher.
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">Match Seed</label>
+              <input id="seedCodeStudentInput" type="text" value="ALPHA-7" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/20 font-mono uppercase text-center" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">Total Players</label>
+              <input id="seedTotalStudentInput" type="number" min="4" max="40" value="12" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/20 font-mono text-center" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">Your Seat #</label>
+              <input id="seedSeatStudentInput" type="number" min="1" max="40" value="1" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/20 font-mono text-center" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">Your Name</label>
+              <input id="seedNameStudentInput" type="text" placeholder="Alex" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/20" />
+            </div>
+          </div>
+          <button onclick="joinOfflineSeedAsStudent()" class="w-full py-3 rounded-xl font-bold text-base theme-accent-btn">
+            UNLOCK MY SECRET ROLE
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Student Controller Dashboard (Shown after joining) -->
+      <div id="studentActiveDashboard" class="space-y-4 hidden">
+        
+        <!-- Top Status Pill -->
+        <div class="theme-card rounded-2xl p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div id="studentStatusAvatar" class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-lg font-bold">
+              👤
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="studentDisplayName" class="font-bold text-base">Alex</span>
+                <span id="studentAliveBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold">
+                  ALIVE
+                </span>
+              </div>
+              <p id="studentPhaseLabel" class="text-xs opacity-75">Phase: Lobby — Waiting for Start</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span id="studentSeatLockBadge" class="text-[11px] px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+              🔒 Seat Locked
+            </span>
+            <button onclick="leaveStudentSession()" id="btnSwitchSeatStudent" class="text-xs px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition">
+              Switch Seat (PIN)
+            </button>
+          </div>
+        </div>
+
+        <!-- Collective Town Survival / Task Progress Bar -->
+        <div class="theme-card rounded-2xl p-4 space-y-1.5">
+          <div class="flex justify-between items-center text-xs font-semibold">
+            <span id="studentTaskBarTitle">🛡️ Village Fortification</span>
+            <span id="studentTaskBarPct" class="font-mono">0%</span>
+          </div>
+          <div class="w-full h-3 bg-black/50 rounded-full overflow-hidden border border-white/10">
+            <div id="studentTaskBarFill" class="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <p class="text-[11px] opacity-70">Complete night calibration tasks to reach 100% and win immediately!</p>
+        </div>
+
+        <!-- ====================================================================
+             ANTI-PEEK PRIVACY SHIELD & SECRET ROLE + NIGHT ACTION AREA
+             ==================================================================== -->
+        <div class="theme-card rounded-2xl p-5 space-y-4 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider opacity-75">🔒 Anti-Peek Terminal</span>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-white/10 font-mono">Hold SPACE or Button</span>
+          </div>
+
+          <!-- Press and Hold Privacy Button -->
+          <button
+            id="peekShieldBtn"
+            onmousedown="setPeekState(true)"
+            onmouseup="setPeekState(false)"
+            onmouseleave="setPeekState(false)"
+            ontouchstart="setPeekState(true); event.preventDefault();"
+            ontouchend="setPeekState(false)"
+            class="w-full py-3.5 px-4 rounded-xl font-bold text-sm sm:text-base border-2 border-dashed border-white/30 bg-black/50 hover:bg-black/70 active:scale-[0.99] transition flex items-center justify-center gap-2 select-none"
+          >
+            <span>👁️</span>
+            <span>HOLD TO PEEK AT ROLE & SECRET ACTIONS</span>
+          </button>
+
+          <!-- Blurred Secret Area -->
+          <div id="secretRoleContainer" class="privacy-blur space-y-4 pt-2">
+            <!-- Role Banner -->
+            <div id="studentRoleBox" class="p-4 rounded-xl bg-black/40 border border-white/15 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs uppercase tracking-wider opacity-70">Assigned Identity</span>
+                <span id="studentAlignmentBadge" class="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                  TOWN ALIGNED
+                </span>
+              </div>
+              <div class="flex items-center gap-2.5">
+                <span id="studentRoleIcon" class="text-3xl">🔮</span>
+                <div>
+                  <h3 id="studentRoleTitle" class="text-xl font-theme-display font-bold">The Seer</h3>
+                  <p id="studentRoleDesc" class="text-xs opacity-80">Each night, inspect one player to discover if they are a threat.</p>
+                </div>
+              </div>
+              <div id="studentTeammatesHint" class="text-xs pt-2 text-red-300 font-semibold hidden"></div>
+            </div>
+
+            <!-- Room Alibi Info (If Spatial Mode ON) -->
+            <div id="studentRoomAlibiBox" class="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-400/30 text-xs space-y-1 hidden">
+              <div class="font-bold text-indigo-300 flex items-center justify-between">
+                <span>📍 Current Sector / Location:</span>
+                <span id="studentCurrentRoomName" class="underline">None Selected</span>
+              </div>
+              <p id="studentRoommatesList" class="opacity-85">Players spotted here with you: Waiting for Night Phase...</p>
+            </div>
+
+            <!-- Dynamic Phase Action Box inside Anti-Peek -->
+            <div id="studentSecretActionBox" class="p-4 rounded-xl bg-black/40 border border-white/15 space-y-3">
+              <!-- Populated dynamically by phase -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ====================================================================
+             PUBLIC / DECOY ACTIVITY AREA (Location Pick, Decoy Task, Day Voting, Ghost Mode)
+             ==================================================================== -->
+        <div id="studentPublicActionCard" class="theme-card rounded-2xl p-5 space-y-4">
+          <!-- Dynamically populated based on Dusk / Night Task / Day Vote / Ghost Haunt -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================
+         VIEW 2: TEACHER PROJECTOR + GOD MODE DASHBOARD
+         ======================================================================== -->
+    <section id="viewProjector" class="space-y-6 hidden">
+      
+      <!-- Top Projector Banner: Room Code, Phase Banner, Timer & Phase Controls -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        
+        <!-- Room / Seed Join Banner (4 cols) -->
+        <div class="lg:col-span-4 theme-card rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider opacity-70" id="projJoinHeaderLabel">JOIN ON CHROMEBOOK</span>
+            <span id="projModePill" class="text-xs px-2.5 py-0.5 rounded-full bg-white/10 font-semibold">Spatial Rooms ON</span>
+          </div>
+          <div class="my-3 flex items-baseline justify-between gap-2">
+            <div>
+              <div class="text-xs opacity-70">Room / Match Code:</div>
+              <div id="projRoomCodeDisplay" class="font-mono text-3xl sm:text-4xl font-extrabold tracking-widest text-amber-400">
+                WOLF
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs opacity-70">Alive / Total:</div>
+              <div id="projAliveCountDisplay" class="font-mono text-2xl font-bold">
+                10 / 10
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs pt-2 border-t border-white/10">
+            <span id="projRoundLabel" class="font-semibold">Round 1</span>
+            <div class="flex items-center gap-1.5">
+              <button onclick="copyStudentLockedLink()" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold hover:bg-cyan-500/30 transition" title="Copy Student-Only URL">
+                🔗 Student Link
+              </button>
+              <button onclick="toggleGodDrawer()" class="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold hover:bg-amber-500/30 transition">
+                👑 Teacher Controls
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Dramatic Phase & Timer Display (5 cols) -->
+        <div class="lg:col-span-5 theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span id="projPhaseEmoji" class="text-2xl">🌕</span>
+              <div>
+                <h2 id="projPhaseTitle" class="font-theme-display text-xl sm:text-2xl font-extrabold tracking-wide">
+                  VILLAGE LOBBY
+                </h2>
+                <p id="projPhaseSubtitle" class="text-xs opacity-80">
+                  Students are joining the session...
+                </p>
+              </div>
+            </div>
+            <!-- Countdown Timer -->
+            <div class="text-right">
+              <div id="projTimerDisplay" class="font-mono text-3xl sm:text-4xl font-extrabold">
+                00:45
+              </div>
+              <div class="flex gap-1 justify-end mt-1">
+                <button onclick="toggleTimerPause()" id="timerPauseBtn" class="text-[11px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20">
+                  ⏯️ Pause
+                </button>
+                <button onclick="addTimerSeconds(15)" class="text-[11px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20">
+                  +15s
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Collective Task Progress Bar on Projector -->
+          <div class="mt-4 space-y-1">
+            <div class="flex justify-between text-xs font-bold">
+              <span id="projTaskTitle">🛡️ Village Fortification (Citizen Tasks)</span>
+              <span id="projTaskPct" class="font-mono text-emerald-400">0%</span>
+            </div>
+            <div class="w-full h-3.5 bg-black/60 rounded-full overflow-hidden border border-white/15">
+              <div id="projTaskFill" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-300 transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Phase Stepper for Teacher (3 cols) -->
+        <div class="lg:col-span-3 theme-card rounded-2xl p-5 flex flex-col justify-between space-y-2">
+          <div class="text-xs font-bold uppercase tracking-wider opacity-75">Phase Director</div>
+          <button onclick="advanceToNextPhase()" id="btnNextPhaseMain" class="w-full py-3 px-4 rounded-xl font-bold text-sm sm:text-base theme-accent-btn flex items-center justify-center gap-2">
+            <span>▶️</span> <span id="btnNextPhaseLabel">START GAME (DUSK)</span>
+          </button>
+          <div class="grid grid-cols-2 gap-1.5 pt-1">
+            <button onclick="setPhase('dusk')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">1. Dusk Rooms</button>
+            <button onclick="setPhase('night')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">2. Night Actions</button>
+            <button onclick="setPhase('morning')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">3. Morning News</button>
+            <button onclick="setPhase('voting')" class="text-xs py-1.5 rounded-lg bg-white/10 hover:bg-white/20">4. Day Voting</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           TEACHER GOD MODE DRAWER (Collapsible Configuration & Secret Inspector)
+           ==================================================================== -->
+      <div id="teacherGodDrawer" class="theme-card rounded-2xl p-5 border-2 border-amber-500/40 space-y-5 hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">👑</span>
+            <div>
+              <h3 class="font-bold text-base text-amber-300">Teacher "God Mode" Control Center</h3>
+              <p class="text-xs opacity-75">Configure game rules, switch network mode, simulate bots, or override player states.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="toggleRevealRolesOnGodPanel()" id="btnToggleSpyRoles" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30">
+              👁️ Show Secret Roles (Teacher Eyes Only)
+            </button>
+            <button onclick="toggleGodDrawer()" class="px-3 py-1.5 rounded-lg text-xs bg-white/10 hover:bg-white/20">
+              Close ✕
+            </button>
+          </div>
+        </div>
+
+        <!-- Settings Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          <!-- 1. Network & Backend Mode -->
+          <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-emerald-300">1. Network / Sync Mode</div>
+            <select id="godNetworkModeSelect" onchange="setNetworkMode(this.value)" class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-xs font-semibold">
+              <option value="sim">🤖 Classroom Bot Simulator (Instant Test)</option>
+              <option value="sheets">🟢 Live Google Sheets API Sync</option>
+              <option value="seed">🛡️ Offline Deterministic Seed Mode (Zero Wi-Fi)</option>
+            </select>
+            <p id="godNetworkModeHint" class="text-[11px] opacity-75">
+              Bot Simulator lets you test all phases with AI students right now—or open Student View to play alongside bots!
+            </p>
+            <div class="flex gap-2 pt-1">
+              <button onclick="populateSimulatedClass(12)" class="text-xs px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20">Reset 12 Bots</button>
+              <button onclick="populateSimulatedClass(24)" class="text-xs px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20">24 Bots</button>
+              <button onclick="simulateBotActionsForCurrentPhase()" class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">⚡ Trigger Bot Moves</button>
+            </div>
+          </div>
+
+          <!-- 2. Spatial Rooms vs Classic Rules Toggle -->
+          <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-cyan-300">2. Gameplay Ruleset</div>
+            <select id="godSpatialModeSelect" onchange="setSpatialMode(this.value === 'spatial')" class="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-xs font-semibold">
+              <option value="spatial">🗺️ Spatial Locations Mode (Dusk Room Alibis)</option>
+              <option value="classic">🎭 Classic Deduction Mode (No Rooms)</option>
+            </select>
+            <div class="flex items-center justify-between text-xs pt-1">
+              <span>Bad Guys Count:</span>
+              <input id="godImpostorCount" type="number" min="1" max="6" value="2" onchange="updateRoleCounts()" class="w-16 px-2 py-1 rounded bg-black/60 border border-white/20 text-center font-mono" />
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span>Require Same-Room Attack?</span>
+              <input id="godSameRoomKillToggle" type="checkbox" class="w-4 h-4 accent-amber-500" />
+            </div>
+          </div>
+
+          <!-- 3. Match Reset & Offline Seed Config -->
+          <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-300">3. Security, PIN & Session Reset</div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] opacity-70 mb-0.5">Room / Seed Code</label>
+                <div class="flex gap-1">
+                  <input id="godRoomCodeInput" type="text" value="WOLF" maxlength="8" class="w-full px-2 py-1 rounded-lg bg-black/60 border border-white/20 font-mono text-xs uppercase" placeholder="WOLF" />
+                  <button onclick="applyRoomCodeChange()" class="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold hover:bg-white/25">Set</button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] opacity-70 mb-0.5">Teacher PIN</label>
+                <div class="flex gap-1">
+                  <input id="godTeacherPinInput" type="text" value="1234" maxlength="8" class="w-full px-2 py-1 rounded-lg bg-black/60 border border-white/20 font-mono text-xs text-center" />
+                  <button onclick="saveTeacherPin()" class="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold hover:bg-white/25">Save</button>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="assignRolesAndStartNewMatch()" class="py-2 px-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold hover:bg-amber-500/30">
+                🎲 Re-Roll & Unlock Seats
+              </button>
+              <button onclick="addCustomPlayerPrompt()" class="py-2 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold">
+                ➕ Add Student
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           DRAMATIC MORNING REPORT / PHASE ANNOUNCEMENT BANNER
+           ==================================================================== -->
+      <div id="projAnnouncementBox" class="theme-card rounded-2xl p-6 border-l-4 border-l-amber-400 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="text-xs font-bold uppercase tracking-widest text-amber-400" id="projNewsHeader">
+            📜 TOWN CHRONICLE & OVERNIGHT BULLETIN
+          </div>
+          <p id="projNewsBody" class="text-base sm:text-lg font-medium">
+            Welcome! Have students open Student View and enter Room Code <span class="font-mono font-bold text-amber-300">WOLF</span>.
+          </p>
+        </div>
+        <div id="projVictoryActions" class="hidden">
+          <button onclick="assignRolesAndStartNewMatch()" class="px-5 py-2.5 rounded-xl font-bold theme-accent-btn">
+            🔄 Play Another Round
+          </button>
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           SPATIAL LOCATIONS OVERVIEW (Shown on Projector when Spatial Mode ON)
+           ==================================================================== -->
+      <div id="projLocationsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Populated dynamically with the 4 themed locations -->
+      </div>
+
+      <!-- ====================================================================
+           LIVE CLASSROOM ROSTER GRID (Alive, Eliminated, Votes, Haunts, God Controls)
+           ==================================================================== -->
+      <div class="space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="font-theme-display text-lg font-bold tracking-wide flex items-center gap-2">
+            <span>👥</span> <span id="projRosterTitle">CITIZEN ROSTER & LIVE VOTING TALLY</span>
+          </h3>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="opacity-75">💡 Click any player's <strong>👻 Haunt</strong> button (or click a haunted card) to play a random spooky sound!</span>
+            <button onclick="resolveDayVotes()" id="btnResolveVotes" class="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-300 border border-red-500/40 font-bold hover:bg-red-500/30 hidden">
+              ⚖️ Execute Highest Vote
+            </button>
+          </div>
+        </div>
+
+        <div id="projPlayersGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <!-- Dynamically populated player cards -->
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ==========================================================================
+       MODAL: TEACHER PIN LOCK & SCREEN SEPARATION EXPLAINER
+       ========================================================================== -->
+  <div id="teacherPinModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="theme-card rounded-2xl max-w-md w-full p-5 space-y-4 border border-amber-500/40">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🔐</span>
+          <div>
+            <h3 class="font-bold text-base text-amber-300">Teacher PIN Required</h3>
+            <p class="text-xs opacity-75">Students are locked out of Projector & God Mode.</p>
+          </div>
+        </div>
+        <button onclick="closeModal('teacherPinModal')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs">✕</button>
+      </div>
+
+      <div class="p-3 rounded-xl bg-black/40 border border-white/10 text-xs space-y-1.5 opacity-90">
+        <div class="font-bold text-cyan-300">🛡️ How Screen Separation Works in Class:</div>
+        <p>1. <strong>Teacher Lock:</strong> Share your link ending with <code>?mode=student</code> (or turn on Student Lock). Students cannot open the Projector or Teacher Dashboard without your PIN (Default: <span class="font-mono font-bold text-amber-300">1234</span>).</p>
+        <p>2. <strong>Chromebook Seat Lock:</strong> Once a student joins as their name, their Chromebook saves a session lock token so they cannot switch seats to peek at another student's role.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider opacity-80 mb-1">Enter Teacher PIN (Default: 1234)</label>
+        <input id="pinModalInput" type="password" maxlength="8" placeholder="••••" onkeydown="if(event.key==='Enter') verifyTeacherPin()" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 font-mono text-xl tracking-widest text-center focus:outline-none focus:border-amber-400" />
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('teacherPinModal')" class="px-3.5 py-2 rounded-xl bg-white/10 text-xs font-semibold">Cancel</button>
+        <button onclick="verifyTeacherPin()" class="px-4 py-2 rounded-xl theme-accent-btn text-xs font-bold">Unlock Teacher Access</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: GOOGLE SHEETS + APPS SCRIPT BACKEND SETUP GUIDE
+       ========================================================================== -->
+  <div id="backendModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="theme-card rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/20">
+      <div class="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-lg">⚙️ Firewall-Proof Google Sheets Multiplayer Backend</h3>
+          <p class="text-xs opacity-75">Use a personal Google Sheet as a free, school-whitelisted multiplayer server (`script.google.com`).</p>
+        </div>
+        <button onclick="closeModal('backendModal')" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-sm">✕</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
+        <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+          <div class="font-bold text-emerald-300">Connect Your Deployed Google Apps Script Web App URL:</div>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec" class="flex-1 px-3 py-2 rounded-lg bg-black/50 border border-white/20 font-mono text-xs" />
+            <button onclick="saveGasUrl()" class="px-4 py-2 rounded-lg font-bold theme-accent-btn text-xs">
+              Save & Enable Live Sync
+            </button>
+          </div>
+          <p id="gasSavedStatus" class="text-[11px] opacity-80">Tip: Leave blank to use the built-in Classroom Simulator or Offline Seed Mode.</p>
+        </div>
+
+        <div class="space-y-2">
+          <h4 class="font-bold text-amber-300">Quick 3-Minute Setup Instructions:</h4>
+          <ol class="list-decimal list-inside space-y-1 opacity-90 text-xs">
+            <li>Create a new blank <strong>Google Sheet</strong> on your personal Google account.</li>
+            <li>Click <strong>Extensions &rarr; Apps Script</strong> in the top menu.</li>
+            <li>Delete any placeholder code in <code>Code.gs</code> and paste the complete script below.</li>
+            <li>Click <strong>Deploy &rarr; New deployment</strong> &rarr; Select type: <strong>Web app</strong>.</li>
+            <li>Set <em>Execute as:</em> <strong>Me</strong>, and <em>Who has access:</em> <strong>Anyone</strong> (so students don't need to log in).</li>
+            <li>Copy the <strong>Web app URL</strong> (`https://script.google.com/macros/s/.../exec`) and paste it into the box above!</li>
+          </ol>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs font-bold text-cyan-300">Code.gs (Google Apps Script)</span>
+            <button onclick="copyGasCode()" id="btnCopyGas" class="px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-semibold">
+              📋 Copy Code.gs
+            </button>
+          </div>
+          <textarea id="gasCodeTextarea" readonly class="w-full h-56 p-3 rounded-xl bg-black/70 border border-white/15 font-mono text-[11px] text-emerald-300 focus:outline-none">
+// ============================================================================
+// CHAMELEON DEDUCTION - GOOGLE SHEETS MULTIPLAYER SERVER (Code.gs)
+// Paste into Extensions -> Apps Script in any Google Sheet, then Deploy as Web App
+// ============================================================================
+
+function doGet(e) {
+  return handleRequest(e);
+}
+
+function doPost(e) {
+  return handleRequest(e);
+}
+
+function handleRequest(e) {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(5000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var params = e.parameter || {};
+    var body = {};
+    if (e.postData && e.postData.contents) {
+      try { body = JSON.parse(e.postData.contents); } catch (err) {}
+    }
+    var action = body.action || params.action || 'getState';
+    var room = (body.room || params.room || 'WOLF').toUpperCase();
+    var key = 'ROOM_' + room;
+    var rawState = props.getProperty(key);
+    var state = rawState ? JSON.parse(rawState) : null;
+
+    if (action === 'pushState' && body.state) {
+      props.setProperty(key, JSON.stringify(body.state));
+      logToSheet(room, body.state);
+      return jsonResponse({ ok: true, state: body.state });
+    }
+
+    if (action === 'playerAction' && state) {
+      var pId = body.playerId;
+      var player = state.players.find(function(p) { return p.id === pId || p.name.toLowerCase() === (body.name || '').toLowerCase(); });
+      if (!player && body.joinIfMissing && body.name) {
+        player = {
+          id: body.playerId || ('p_' + new Date().getTime()),
+          seat: state.players.length + 1,
+          name: body.name,
+          alive: true,
+          role: 'CITIZEN',
+          deviceToken: body.deviceToken || null,
+          location: null,
+          nightTarget: null,
+          voteTarget: null,
+          hauntTarget: null,
+          haunted: false,
+          hauntCount: 0
+        };
+        state.players.push(player);
+      }
+      if (player) {
+        // Enforce deviceToken seat ownership so another Chromebook cannot hijack this student's seat
+        if (player.deviceToken && body.deviceToken && player.deviceToken !== body.deviceToken) {
+          return jsonResponse({ ok: false, error: 'SEAT_LOCKED_BY_ANOTHER_DEVICE', state: state });
+        }
+        if (body.deviceToken && !player.deviceToken) {
+          player.deviceToken = body.deviceToken;
+        }
+        if (body.location !== undefined) player.location = body.location;
+        if (body.nightTarget !== undefined) player.nightTarget = body.nightTarget;
+        if (body.voteTarget !== undefined) player.voteTarget = body.voteTarget;
+        if (body.hauntTarget !== undefined) {
+          player.hauntTarget = body.hauntTarget;
+          state.players.forEach(function(x) { x.haunted = false; });
+          var hTarget = state.players.find(function(x) { return x.id === body.hauntTarget; });
+          if (hTarget) {
+            hTarget.haunted = true;
+            hTarget.hauntCount = (hTarget.hauntCount || 0) + 1;
+            state.lastHauntEvent = { targetId: hTarget.id, targetName: hTarget.name, timestamp: new Date().getTime() };
+          }
+        }
+        if (body.taskDelta) {
+          state.taskProgress = Math.min(100, (state.taskProgress || 0) + Number(body.taskDelta));
+        }
+      }
+      props.setProperty(key, JSON.stringify(state));
+      return jsonResponse({ ok: true, state: state });
+    }
+
+    return jsonResponse({ ok: true, state: state });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function logToSheet(room, state) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('LiveState') || ss.insertSheet('LiveState');
+    sheet.getRange('A1').setValue('Room: ' + room);
+    sheet.getRange('B1').setValue('Phase: ' + state.phase);
+    sheet.getRange('C1').setValue('Updated: ' + new Date().toLocaleTimeString());
+    sheet.getRange('A2').setValue(JSON.stringify(state.players));
+  } catch (err) {}
+}
+
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL: ADD PLAYER (NO NATIVE PROMPT/ALERT)
+       ========================================================================== -->
+  <div id="addPlayerModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="theme-card rounded-2xl max-w-sm w-full p-5 space-y-4 border border-white/20">
+      <h3 class="font-bold text-base">➕ Add Student to Roster</h3>
+      <input id="newPlayerNameModalInput" type="text" maxlength="16" placeholder="Student Name" class="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/20 text-sm focus:outline-none" />
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal('addPlayerModal')" class="px-3 py-1.5 rounded-lg bg-white/10 text-xs">Cancel</button>
+        <button onclick="confirmAddCustomPlayer()" class="px-4 py-1.5 rounded-lg theme-accent-btn text-xs font-bold">Add Student</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       TOAST NOTIFICATION CONTAINER
+       ========================================================================== -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- ==========================================================================
+       CORE APPLICATION JAVASCRIPT
+       ========================================================================== -->
+  <script>
+    /* ==========================================================================
+       1. THE 4 DYNAMIC THEME DEFINITIONS
+       ========================================================================== */
+    const THEMES = {
+      werewolf: {
+        id: 'werewolf',
+        title: 'SHADOWS OF BLACKWOOD',
+        subtitle: 'Classic Village Social Deduction',
+        emoji: '🐺',
+        taskBarName: '🛡️ Village Fortification',
+        badPlural: 'Werewolves',
+        goodPlural: 'Villagers',
+        roles: {
+          IMPACTOR: {
+            name: 'Werewolf',
+            icon: '🐺',
+            alignment: 'THREAT',
+            desc: 'Strike from the shadows at night. Blend in with the villagers during the day.'
+          },
+          INVESTIGATOR: {
+            name: 'Mystic Seer',
+            icon: '🔮',
+            alignment: 'TOWN',
+            desc: 'Peer into one player’s aura each night to learn whether they are a Werewolf.'
+          },
+          PROTECTOR: {
+            name: 'Town Doctor',
+            icon: '⚕️',
+            alignment: 'TOWN',
+            desc: 'Stand guard outside one player’s door each night to prevent an attack.'
+          },
+          CITIZEN: {
+            name: 'Villager',
+            icon: '🌾',
+            alignment: 'TOWN',
+            desc: 'Fortify the village barricades at night and deduce who the Werewolves are by day.'
+          }
+        },
+        locations: [
+          { id: 'loc_0', name: 'The Rusty Tavern', icon: '🍺', desc: 'Warm hearth & noisy alibis' },
+          { id: 'loc_1', name: 'Whispering Woods', icon: '🌲', desc: 'Dense fog & snapping twigs' },
+          { id: 'loc_2', name: 'Old Watermill', icon: '⚙️', desc: 'Creaking timber by the river' },
+          { id: 'loc_3', name: 'Cobblestone Square', icon: '⛲', desc: 'Open lantern-lit center' }
+        ],
+        phaseText: {
+          lobby: { title: 'VILLAGE GATHERING', sub: 'Travelers are arriving at Blackwood...' },
+          dusk: { title: 'DUSK FALLS', sub: 'Choose which location to shelter in before nightfall!' },
+          night: { title: 'THE FULL MOON RISES', sub: 'Hold SPACE to peek at your role. Complete your night task!' },
+          morning: { title: 'DAWN BREAKS', sub: 'The village gathers to hear what happened overnight.' },
+          voting: { title: 'TOWN TRIBUNAL', sub: 'Debate the alibis and cast your vote before sundown!' }
+        }
+      },
+
+      scifi: {
+        id: 'scifi',
+        title: 'OUTPOST 8 // MAINFRAME',
+        subtitle: 'Deep-Space Terminal Deduction',
+        emoji: '🚀',
+        taskBarName: '⚡ Mainframe Reboot',
+        badPlural: 'Rogue Synths',
+        goodPlural: 'Crew Members',
+        roles: {
+          IMPACTOR: {
+            name: 'Rogue Synth',
+            icon: '🤖',
+            alignment: 'THREAT',
+            desc: 'Sabotage the crew during power blackouts without triggering biometric detection.'
+          },
+          INVESTIGATOR: {
+            name: 'Security Scanner',
+            icon: '📡',
+            alignment: 'TOWN',
+            desc: 'Run a deep-packet bioscan on one crew member each blackout cycle.'
+          },
+          PROTECTOR: {
+            name: 'Shield Engineer',
+            icon: '🛡️',
+            alignment: 'TOWN',
+            desc: 'Deploy an emergency forcefield around one crew member each blackout.'
+          },
+          CITIZEN: {
+            name: 'Crew Specialist',
+            icon: '🧑‍🚀',
+            alignment: 'TOWN',
+            desc: 'Calibrate mainframe frequency nodes at night and eject the Rogue Synths.'
+          }
+        },
+        locations: [
+          { id: 'loc_0', name: 'Reactor Core', icon: '☢️', desc: 'High-voltage plasma conduits' },
+          { id: 'loc_1', name: 'MedBay Sector', icon: '🧬', desc: 'autodoc pods & cryo scanners' },
+          { id: 'loc_2', name: 'Comms Bridge', icon: '🛰️', desc: 'Deep-space telemetry deck' },
+          { id: 'loc_3', name: 'Cargo Airlock', icon: '🚪', desc: 'Heavy pressurized docking bay' }
+        ],
+        phaseText: {
+          lobby: { title: 'AIRLOCK DOCKING', sub: 'Awaiting crew biometric check-in...' },
+          dusk: { title: 'SHIFT ROTATION', sub: 'Select your station sector before power grid blackout!' },
+          night: { title: 'POWER GRID OFFLINE', sub: 'Hold SPACE to access encrypted terminal & run diagnostics.' },
+          morning: { title: 'SYSTEM DIAGNOSTIC', sub: 'Emergency backup lighting restored. Reviewing sector logs.' },
+          voting: { title: 'AIRLOCK TRIBUNAL', sub: 'Cross-check sector alibis and vote on who to jettison!' }
+        }
+      },
+
+      medieval: {
+        id: 'medieval',
+        title: 'CROWN OF INTRIGUE',
+        subtitle: 'Royal Court Treason & Alibis',
+        emoji: '🏰',
+        taskBarName: '👑 Kingdom Stability',
+        badPlural: 'Royal Assassins',
+        goodPlural: 'Loyal Courtiers',
+        roles: {
+          IMPACTOR: {
+            name: 'Royal Assassin',
+            icon: '🗡️',
+            alignment: 'THREAT',
+            desc: 'Conspire in the candlelit corridors to eliminate the Crown’s loyalists.'
+          },
+          INVESTIGATOR: {
+            name: 'Royal Spymaster',
+            icon: '🦉',
+            alignment: 'TOWN',
+            desc: 'Intercept a noble’s secret correspondence at night to uncover treason.'
+          },
+          PROTECTOR: {
+            name: 'King’s Guard',
+            icon: '🛡️',
+            alignment: 'TOWN',
+            desc: 'Post steel sentries outside one noble’s chambers for the night.'
+          },
+          CITIZEN: {
+            name: 'Noble Courtier',
+            icon: '⚜️',
+            alignment: 'TOWN',
+            desc: 'Decipher royal decrees at night and root out the Assassins in High Council.'
+          }
+        },
+        locations: [
+          { id: 'loc_0', name: 'The Throne Room', icon: '👑', desc: 'Velvet drapes & whispered plots' },
+          { id: 'loc_1', name: 'Castle Armory', icon: '⚔️', desc: 'Racks of steel & stone vaults' },
+          { id: 'loc_2', name: 'Grand Feast Hall', icon: '🍷', desc: 'Roaring hearth & long tables' },
+          { id: 'loc_3', name: 'Stone Dungeon', icon: '⛓️', desc: 'Torchlit subterranean cells' }
+        ],
+        phaseText: {
+          lobby: { title: 'ROYAL SUMMONS', sub: 'Nobles are entering the Citadel...' },
+          dusk: { title: 'CASTLE CURFEW', sub: 'Choose which wing of the castle to visit before curfew!' },
+          night: { title: 'SHADOWS IN THE KEEP', sub: 'Hold SPACE to break your royal seal and act in secret.' },
+          morning: { title: 'HERALD’S PROCLAMATION', sub: 'The High Council convenes to hear the night’s tidings.' },
+          voting: { title: 'HIGH COUNCIL TRIAL', sub: 'Weigh the testimonies and vote to banish the traitor!' }
+        }
+      },
+
+      biolab: {
+        id: 'biolab',
+        title: 'CONTAINMENT LEVEL 4',
+        subtitle: 'Bio-Research Facility Lockdown',
+        emoji: '🧬',
+        taskBarName: '🧪 Antiviral Synthesis',
+        badPlural: 'Infected Hosts',
+        goodPlural: 'Lab Researchers',
+        roles: {
+          IMPACTOR: {
+            name: 'Infected Host',
+            icon: '☣️',
+            alignment: 'THREAT',
+            desc: 'Spread the pathogen in sealed sectors while mimicking healthy scientists.'
+          },
+          INVESTIGATOR: {
+            name: 'Epidemiologist',
+            icon: '🔬',
+            alignment: 'TOWN',
+            desc: 'Run a rapid PCR blood assay on one researcher each lockdown cycle.'
+          },
+          PROTECTOR: {
+            name: 'Quarantine Medic',
+            icon: '💉',
+            alignment: 'TOWN',
+            desc: 'Administer a preventative booster shield to one researcher each night.'
+          },
+          CITIZEN: {
+            name: 'Lab Researcher',
+            icon: '🥼',
+            alignment: 'TOWN',
+            desc: 'Synthesize antiviral sequences at night and quarantine the Infected Hosts.'
+          }
+        },
+        locations: [
+          { id: 'loc_0', name: 'Cryo-Vault', icon: '❄️', desc: 'Sub-zero specimen storage' },
+          { id: 'loc_1', name: 'Server Matrix', icon: '🖥️', desc: 'Bio-informatics supercomputer' },
+          { id: 'loc_2', name: 'Hydroponics Dome', icon: '🌿', desc: 'Sealed oxygen botanical lab' },
+          { id: 'loc_3', name: 'Decon Chamber', icon: '🚿', desc: 'UV sterilization airlock' }
+        ],
+        phaseText: {
+          lobby: { title: 'HAZMAT CHECK-IN', sub: 'Researchers entering Containment Level 4...' },
+          dusk: { title: 'SECTOR SEALING', sub: 'Report to a lab sector before blast doors lock!' },
+          night: { title: 'CONTAINMENT LOCKDOWN', sub: 'Hold SPACE to view classified lab clearance & tasks.' },
+          morning: { title: 'MORNING BIO-REPORT', sub: 'Blast doors unseal. Reviewing overnight contamination sensors.' },
+          voting: { title: 'QUARANTINE HEARING', sub: 'Examine lab sector logs and vote who to place in stasis!' }
+        }
+      }
+    };
+
+    /* ==========================================================================
+       2. GLOBAL GAME STATE
+       ========================================================================== */
+    const DEFAULT_STUDENT_NAMES = [
+      'Alex', 'Brianna', 'Caleb', 'Maya', 'Jordan', 'Zoe',
+      'Liam', 'Sofia', 'Noah', 'Chloe', 'Ethan', 'Ava',
+      'Lucas', 'Mia', 'Mason', 'Harper', 'Logan', 'Evelyn',
+      'Aiden', 'Ella', 'Jackson', 'Scarlett', 'Mateo', 'Aria'
+    ];
+
+    let gameState = {
+      roomCode: 'WOLF',
+      theme: 'werewolf',
+      networkMode: 'sim', // 'sim' | 'sheets' | 'seed'
+      spatialMode: true,  // true = 4 locations at Dusk; false = classic mode
+      sameRoomKillOnly: false,
+      impostorCount: 2,
+      phase: 'lobby',     // 'lobby' | 'dusk' | 'night' | 'morning' | 'voting' | 'gameover'
+      round: 1,
+      timerSeconds: 45,
+      phaseEndTime: Date.now() + 45000, // Authoritative timestamp so sync polls never reset countdown
+      phaseStateId: 1,                  // Increments only when teacher changes phase or adjusts time
+      timerPaused: true,
+      taskProgress: 12,
+      matchSessionId: 'match_1',
+      lastHauntEvent: null,
+      announcement: 'Welcome! Have students open Student View and enter Room Code WOLF, or test immediately with our Classroom Bots.',
+      revealRolesOnGodPanel: false,
+      players: []
+    };
+
+    // Local Student Controller & Teacher Security Lock State
+    let studentSession = {
+      joined: false,
+      isOfflineSeed: false,
+      playerId: null,
+      name: '',
+      seatNumber: 1,
+      deviceToken: localStorage.getItem('chameleon_device_token') || ('dev_' + Math.random().toString(36).substring(2, 10)),
+      peeking: false,
+      investigatedResult: null,
+      activeDecoyCode: '4829',
+      enteredDecoyCode: '',
+      decoySolvedThisNight: false
+    };
+    localStorage.setItem('chameleon_device_token', studentSession.deviceToken);
+
+    let securityState = {
+      teacherPin: localStorage.getItem('chameleon_teacher_pin') || '1234',
+      isTeacherUnlocked: true,
+      pendingTargetAction: null
+    };
+
+    let localTimerTracker = {
+      lastSeenPhase: 'lobby',
+      lastSeenPhaseStateId: 1,
+      lastHauntTimestamp: 0
+    };
+
+    let soundEnabled = true;
+    let timerInterval = null;
+    let syncInterval = null;
+    let gasWebAppUrl = localStorage.getItem('chameleon_gas_url') || '';
+
+    /* ==========================================================================
+       3. WEB AUDIO API SYNTHESIZER + 6 PROCEDURAL SPOOKY HAUNT SOUNDS
+       ========================================================================== */
+    let audioCtx = null;
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playTone(type) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = ensureAudioCtx();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'click') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(780, now + 0.06);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.06);
+          osc.start(now);
+          osc.stop(now + 0.07);
+        } else if (type === 'phase') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(440, now + 0.25);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.36);
+        } else if (type === 'success') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.setValueAtTime(880, now + 0.1);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.26);
+        } else if (type === 'dramatic') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(140, now);
+          osc.frequency.linearRampToValueAtTime(95, now + 0.45);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.52);
+        }
+      } catch (e) {}
+    }
+
+    // 6 Distinct Procedural Spooky Haunt Sounds using Web Audio API
+    const SPOOKY_PRESETS = [
+      'Ghostly Theremin Wail',
+      'Creepy Detuned Music Box',
+      'Phantom Heartbeat Thump',
+      'Poltergeist Static Whisper',
+      'Rattling Dungeon Chains',
+      'Banshee Sub-Bass Drone'
+    ];
+
+    function playRandomSpookySound(targetName = '') {
+      if (!soundEnabled) return;
+      try {
+        const ctx = ensureAudioCtx();
+        const now = ctx.currentTime;
+        const choice = Math.floor(Math.random() * SPOOKY_PRESETS.length);
+        const label = SPOOKY_PRESETS[choice];
+
+        if (choice === 0) {
+          // 1. Ghostly Theremin Wail (Sine + Vibrato LFO)
+          const osc = ctx.createOscillator();
+          const lfo = ctx.createOscillator();
+          const lfoGain = ctx.createGain();
+          const gain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(380, now);
+          osc.frequency.exponentialRampToValueAtTime(790, now + 0.45);
+          osc.frequency.exponentialRampToValueAtTime(310, now + 1.1);
+
+          lfo.frequency.setValueAtTime(7.5, now);
+          lfoGain.gain.setValueAtTime(28, now);
+          lfo.connect(lfoGain);
+          lfoGain.connect(osc.frequency);
+
+          gain.gain.setValueAtTime(0.01, now);
+          gain.gain.linearRampToValueAtTime(0.18, now + 0.2);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 1.15);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          lfo.start(now);
+          osc.stop(now + 1.15);
+          lfo.stop(now + 1.15);
+        } else if (choice === 1) {
+          // 2. Creepy Detuned Music Box Arpeggio
+          const notes = [523.25, 622.25, 783.99, 740.0, 622.25, 987.77];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const t = now + idx * 0.12;
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq * (idx % 2 === 0 ? 1 : 0.985), t); // slight eerie detune
+            gain.gain.setValueAtTime(0.14, t);
+            gain.gain.exponentialRampToValueAtTime(0.005, t + 0.35);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.36);
+          });
+        } else if (choice === 2) {
+          // 3. Phantom Heartbeat Double-Thump
+          [0, 0.22, 0.65, 0.87].forEach((offset, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const t = now + offset;
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(i % 2 === 0 ? 75 : 58, t);
+            osc.frequency.exponentialRampToValueAtTime(28, t + 0.16);
+            gain.gain.setValueAtTime(0.32, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.17);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.18);
+          });
+        } else if (choice === 3) {
+          // 4. Poltergeist Static Whisper (Filtered White Noise Sweep)
+          const bufferSize = ctx.sampleRate * 0.9;
+          const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const output = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+          }
+          const whiteNoise = ctx.createBufferSource();
+          whiteNoise.buffer = noiseBuffer;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.Q.setValueAtTime(6, now);
+          filter.frequency.setValueAtTime(400, now);
+          filter.frequency.exponentialRampToValueAtTime(2200, now + 0.45);
+          filter.frequency.exponentialRampToValueAtTime(500, now + 0.88);
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.01, now);
+          gain.gain.linearRampToValueAtTime(0.22, now + 0.25);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.9);
+
+          whiteNoise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          whiteNoise.start(now);
+          whiteNoise.stop(now + 0.9);
+        } else if (choice === 4) {
+          // 5. Rattling Dungeon Chains / Metallic Scrape
+          for (let i = 0; i < 5; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const t = now + i * 0.085;
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(900 + Math.random() * 1400, t);
+            osc.frequency.exponentialRampToValueAtTime(320, t + 0.07);
+            gain.gain.setValueAtTime(0.09, t);
+            gain.gain.exponentialRampToValueAtTime(0.005, t + 0.075);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.08);
+          }
+        } else {
+          // 6. Banshee Sub-Bass Chord Drone
+          [92.5, 130.81, 196.0].forEach(f => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(f, now);
+            osc.frequency.linearRampToValueAtTime(f * 0.93, now + 0.95);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.004, now + 0.95);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.96);
+          });
+        }
+
+        showToast(`👻 ${targetName ? targetName + ' — ' : ''}${label}!`);
+      } catch (e) {}
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('soundToggleBtn').textContent = soundEnabled ? '🔊' : '🔇';
+      showToast(soundEnabled ? 'Sound Effects Enabled' : 'Sound Effects Muted');
+    }
+
+    /* ==========================================================================
+       4. DETERMINISTIC SEED PRNG ENGINE (OPTION 3 ZERO-NETWORK FALLBACK)
+       ========================================================================== */
+    function hashStringToSeed(str) {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    // Deterministically assigns roles for seats 1..totalPlayers given a seed string
+    function computeDeterministicRoles(seedCode, totalPlayers, impostorCount = 2) {
+      const cleanSeed = (seedCode || 'WOLF').trim().toUpperCase();
+      const rng = mulberry32(hashStringToSeed(cleanSeed + '_' + totalPlayers));
+      const roles = new Array(totalPlayers).fill('CITIZEN');
+
+      const numImp = Math.max(1, Math.min(impostorCount, Math.floor(totalPlayers / 3)));
+      for (let i = 0; i < numImp; i++) roles[i] = 'IMPACTOR';
+      if (totalPlayers >= 4) roles[numImp] = 'INVESTIGATOR';
+      if (totalPlayers >= 5) roles[numImp + 1] = 'PROTECTOR';
+
+      // Fisher-Yates shuffle using seeded PRNG
+      for (let i = roles.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const temp = roles[i];
+        roles[i] = roles[j];
+        roles[j] = temp;
+      }
+      return roles;
+    }
+
+    /* ==========================================================================
+       5. INITIALIZATION, URL STUDENT LOCK & FIXED TIMESTAMP TIMER
+       ========================================================================== */
+    window.onload = function() {
+      if (gasWebAppUrl) {
+        document.getElementById('gasUrlInput').value = gasWebAppUrl;
+      }
+      document.getElementById('godTeacherPinInput').value = securityState.teacherPin;
+
+      // Keyboard listener for Anti-Peek SPACEBAR hold
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+          if (studentSession.joined) {
+            e.preventDefault();
+            if (!studentSession.peeking) setPeekState(true);
+          }
+        }
+      });
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' && studentSession.joined) {
+          setPeekState(false);
+        }
+      });
+
+      populateSimulatedClass(12);
+      setTheme('werewolf');
+
+      // Check if URL has ?mode=student or ?student=1 to auto-lock to Student Chromebook mode
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRoom = urlParams.get('room');
+      if (urlRoom) {
+        gameState.roomCode = urlRoom.toUpperCase();
+        document.getElementById('studentRoomInput').value = gameState.roomCode;
+        document.getElementById('godRoomCodeInput').value = gameState.roomCode;
+      }
+
+      if (urlParams.get('mode') === 'student' || urlParams.get('student') === '1') {
+        securityState.isTeacherUnlocked = false;
+        updateSecurityLockUI();
+        switchView('student');
+      } else {
+        securityState.isTeacherUnlocked = true;
+        updateSecurityLockUI();
+        switchView('projector');
+      }
+
+      // Check if this Chromebook previously locked into a seat for the active matchSessionId
+      restoreLockedStudentSeatIfAny();
+
+      // FIXED AUTHORITATIVE TIMER LOOP:
+      // Computes remaining time from `phaseEndTime` so background polls or re-renders NEVER reset it
+      timerInterval = setInterval(() => {
+        if (!gameState.timerPaused) {
+          const remaining = Math.max(0, Math.ceil((gameState.phaseEndTime - Date.now()) / 1000));
+          gameState.timerSeconds = remaining;
+          updateProjectorTimerUI();
+        }
+      }, 250);
+
+      // Start Google Sheets sync polling loop (active when networkMode === 'sheets')
+      syncInterval = setInterval(() => {
+        if (gameState.networkMode === 'sheets' && gasWebAppUrl) {
+          pullStateFromGoogleSheet();
+        }
+      }, 3500);
+    };
+
+    function setAuthoritativeTimer(seconds, paused = false) {
+      gameState.timerSeconds = seconds;
+      gameState.timerPaused = paused;
+      gameState.phaseEndTime = Date.now() + seconds * 1000;
+      gameState.phaseStateId = (gameState.phaseStateId || 1) + 1;
+      localTimerTracker.lastSeenPhase = gameState.phase;
+      localTimerTracker.lastSeenPhaseStateId = gameState.phaseStateId;
+      updateProjectorTimerUI();
+    }
+
+    /* ==========================================================================
+       5B. TEACHER PIN LOCK & CHROMEBOOK SEAT LOCK SYSTEM
+       ========================================================================== */
+    function requestTeacherAccess(target) {
+      if (securityState.isTeacherUnlocked) {
+        if (target === 'projector') switchView('projector');
+        if (target === 'backend') openModal('backendModal');
+        return;
+      }
+      securityState.pendingTargetAction = target;
+      document.getElementById('pinModalInput').value = '';
+      openModal('teacherPinModal');
+      setTimeout(() => document.getElementById('pinModalInput').focus(), 80);
+    }
+
+    function verifyTeacherPin() {
+      const entered = (document.getElementById('pinModalInput').value || '').trim();
+      if (entered === securityState.teacherPin) {
+        securityState.isTeacherUnlocked = true;
+        closeModal('teacherPinModal');
+        updateSecurityLockUI();
+        playTone('success');
+        showToast('🔓 Teacher Access Unlocked!');
+
+        if (securityState.pendingTargetAction === 'projector') {
+          switchView('projector');
+        } else if (securityState.pendingTargetAction === 'backend') {
+          openModal('backendModal');
+        } else if (securityState.pendingTargetAction === 'switchSeat') {
+          clearStudentSeatLockAndLeave();
+        }
+        securityState.pendingTargetAction = null;
+      } else {
+        playTone('dramatic');
+        showToast('❌ Incorrect Teacher PIN!');
+      }
+    }
+
+    function saveTeacherPin() {
+      const newPin = (document.getElementById('godTeacherPinInput').value || '1234').trim();
+      securityState.teacherPin = newPin;
+      localStorage.setItem('chameleon_teacher_pin', newPin);
+      showToast(`🔐 Teacher PIN updated to "${newPin}"`);
+    }
+
+    function toggleStudentLockSimulation() {
+      if (securityState.isTeacherUnlocked) {
+        securityState.isTeacherUnlocked = false;
+        switchView('student');
+        updateSecurityLockUI();
+        showToast('🔒 Student Lock Active! Projector & God Mode now require PIN (' + securityState.teacherPin + ').');
+      } else {
+        requestTeacherAccess('projector');
+      }
+    }
+
+    function updateSecurityLockUI() {
+      const btn = document.getElementById('btnLockSimToggle');
+      const simPicker = document.getElementById('simStudentPickerWrap');
+      if (securityState.isTeacherUnlocked) {
+        btn.innerHTML = `<span>🔓</span> <span class="hidden lg:inline">Lock to Student Mode</span>`;
+        btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition flex items-center gap-1';
+        if (simPicker) simPicker.classList.remove('hidden');
+      } else {
+        btn.innerHTML = `<span>🔒</span> <span class="hidden lg:inline">Student Locked (PIN)</span>`;
+        btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1';
+        if (simPicker) simPicker.classList.add('hidden');
+      }
+    }
+
+    function copyStudentLockedLink() {
+      const baseUrl = window.location.href.split('?')[0];
+      const studentUrl = `${baseUrl}?mode=student&room=${encodeURIComponent(gameState.roomCode)}`;
+      const tempInput = document.createElement('input');
+      tempInput.value = studentUrl;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      tempInput.remove();
+      showToast('🔗 Copied Student-Locked URL (?mode=student) to clipboard!');
+    }
+
+    function saveStudentSeatLock(player) {
+      const lockData = {
+        matchSessionId: gameState.matchSessionId,
+        roomCode: gameState.roomCode,
+        playerId: player.id,
+        name: player.name,
+        seat: player.seat
+      };
+      localStorage.setItem('chameleon_seat_lock', JSON.stringify(lockData));
+    }
+
+    function restoreLockedStudentSeatIfAny() {
+      try {
+        const raw = localStorage.getItem('chameleon_seat_lock');
+        if (!raw) return;
+        const lockData = JSON.parse(raw);
+        if (lockData && lockData.matchSessionId === gameState.matchSessionId) {
+          const existing = gameState.players.find(p => p.id === lockData.playerId || p.name.toLowerCase() === (lockData.name || '').toLowerCase());
+          if (existing) {
+            studentSession.joined = true;
+            studentSession.playerId = existing.id;
+            studentSession.name = existing.name;
+            studentSession.seatNumber = existing.seat;
+            document.getElementById('studentJoinCard').classList.add('hidden');
+            document.getElementById('studentActiveDashboard').classList.remove('hidden');
+          }
+        }
+      } catch (e) {}
+    }
+
+    function populateSimulatedClass(count) {
+      const roles = computeDeterministicRoles(gameState.roomCode + '_' + Date.now(), count, gameState.impostorCount);
+      gameState.players = [];
+      gameState.matchSessionId = 'match_' + Date.now();
+      localStorage.removeItem('chameleon_seat_lock');
+
+      for (let i = 0; i < count; i++) {
+        gameState.players.push({
+          id: 'seat_' + (i + 1),
+          seat: i + 1,
+          name: DEFAULT_STUDENT_NAMES[i] || ('Student ' + (i + 1)),
+          role: roles[i],
+          alive: true,
+          isBot: true,
+          deviceToken: null,
+          location: null,
+          nightTarget: null,
+          voteTarget: null,
+          hauntTarget: null,
+          haunted: false,
+          hauntCount: 0
+        });
+      }
+      gameState.phase = 'lobby';
+      gameState.round = 1;
+      gameState.taskProgress = 12;
+      setAuthoritativeTimer(45, true);
+      gameState.announcement = `Loaded ${count} students in Room ${gameState.roomCode}. Click "START GAME (DUSK)" when ready!`;
+      refreshSimStudentDropdown();
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function refreshSimStudentDropdown() {
+      const sel = document.getElementById('simStudentQuickSelect');
+      if (!sel) return;
+      sel.innerHTML = `<option value="">-- Or pick an existing student seat to test --</option>`;
+      gameState.players.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `Seat #${p.seat}: ${p.name} (${p.alive ? 'Alive' : 'Ghost'})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function selectSimulatedStudent(playerId) {
+      if (!playerId) return;
+      const p = gameState.players.find(x => x.id === playerId);
+      if (p) {
+        document.getElementById('studentNameInput').value = p.name;
+      }
+    }
+
+    /* ==========================================================================
+       6. THEME ENGINE & VIEW NAVIGATION
+       ========================================================================== */
+    function setTheme(themeKey) {
+      if (!THEMES[themeKey]) return;
+      gameState.theme = themeKey;
+      document.body.setAttribute('data-theme', themeKey);
+      document.getElementById('quickThemeSelect').value = themeKey;
+
+      const t = THEMES[themeKey];
+      document.getElementById('headerThemeIcon').textContent = t.emoji;
+      document.getElementById('headerTitle').textContent = t.title;
+      document.getElementById('headerSubtitle').textContent = t.subtitle;
+      document.getElementById('studentWelcomeEmoji').textContent = t.emoji;
+
+      playTone('click');
+      renderAll();
+    }
+
+    function switchView(view) {
+      const isStudent = view === 'student';
+      document.getElementById('viewStudent').classList.toggle('hidden', !isStudent);
+      document.getElementById('viewProjector').classList.toggle('hidden', isStudent);
+
+      const tabS = document.getElementById('tabStudent');
+      const tabP = document.getElementById('tabProjector');
+      if (isStudent) {
+        tabS.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold theme-accent-btn flex items-center gap-1.5';
+        tabP.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold opacity-75 hover:opacity-100 transition flex items-center gap-1.5';
+      } else {
+        tabP.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold theme-accent-btn flex items-center gap-1.5';
+        tabS.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold opacity-75 hover:opacity-100 transition flex items-center gap-1.5';
+      }
+      playTone('click');
+      renderAll();
+    }
+
+    /* ==========================================================================
+       7. STUDENT CONTROLLER LOGIC (JOIN, ANTI-PEEK, NIGHT ACTIONS, DECOY TASKS)
+       ========================================================================== */
+    function setStudentJoinMode(mode) {
+      const isLive = mode === 'live';
+      document.getElementById('studentLiveJoinFields').classList.toggle('hidden', !isLive);
+      document.getElementById('studentSeedJoinFields').classList.toggle('hidden', isLive);
+      document.getElementById('btnJoinModeLive').className = isLive
+        ? 'py-2 rounded-lg bg-white/15 text-white transition'
+        : 'py-2 rounded-lg opacity-70 hover:opacity-100 transition';
+      document.getElementById('btnJoinModeSeed').className = !isLive
+        ? 'py-2 rounded-lg bg-white/15 text-white transition'
+        : 'py-2 rounded-lg opacity-70 hover:opacity-100 transition';
+    }
+
+    function joinGameAsStudent() {
+      const code = (document.getElementById('studentRoomInput').value || 'WOLF').trim().toUpperCase();
+      const name = (document.getElementById('studentNameInput').value || '').trim();
+      if (!name) {
+        showToast('Please enter your first name or nickname!');
+        return;
+      }
+
+      // Check if this Chromebook is already locked to a DIFFERENT student seat in this session
+      const rawLock = localStorage.getItem('chameleon_seat_lock');
+      if (rawLock && !securityState.isTeacherUnlocked) {
+        try {
+          const lock = JSON.parse(rawLock);
+          if (lock.matchSessionId === gameState.matchSessionId && lock.name.toLowerCase() !== name.toLowerCase()) {
+            playTone('dramatic');
+            showToast(`🔒 This Chromebook is already locked to ${lock.name}! Ask your teacher if you need a seat reset.`);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      gameState.roomCode = code;
+      // Find existing player by name or add new
+      let player = gameState.players.find(p => p.name.toLowerCase() === name.toLowerCase());
+      if (player) {
+        // Prevent hijacking another student's claimed seat if locked by another deviceToken
+        if (player.deviceToken && player.deviceToken !== studentSession.deviceToken && !securityState.isTeacherUnlocked) {
+          playTone('dramatic');
+          showToast(`🔒 "${player.name}" is already claimed on another Chromebook!`);
+          return;
+        }
+        player.isBot = false;
+        player.deviceToken = studentSession.deviceToken;
+      } else {
+        const newSeat = gameState.players.length + 1;
+        player = {
+          id: 'seat_' + newSeat + '_' + Date.now(),
+          seat: newSeat,
+          name: name,
+          role: 'CITIZEN',
+          alive: true,
+          isBot: false,
+          deviceToken: studentSession.deviceToken,
+          location: null,
+          nightTarget: null,
+          voteTarget: null,
+          hauntTarget: null,
+          haunted: false,
+          hauntCount: 0
+        };
+        gameState.players.push(player);
+      }
+
+      studentSession.joined = true;
+      studentSession.isOfflineSeed = false;
+      studentSession.playerId = player.id;
+      studentSession.name = player.name;
+      studentSession.seatNumber = player.seat;
+      studentSession.investigatedResult = null;
+      saveStudentSeatLock(player);
+      generateNewDecoyCode();
+
+      document.getElementById('studentJoinCard').classList.add('hidden');
+      document.getElementById('studentActiveDashboard').classList.remove('hidden');
+
+      playTone('success');
+      showToast(`Joined as ${player.name}! Hold SPACE to peek at your role.`);
+      syncStudentActionToBackend({
+        joinIfMissing: true,
+        name: player.name,
+        playerId: player.id,
+        deviceToken: studentSession.deviceToken
+      });
+      renderAll();
+    }
+
+    function joinOfflineSeedAsStudent() {
+      const seedCode = (document.getElementById('seedCodeStudentInput').value || 'ALPHA-7').trim().toUpperCase();
+      const total = parseInt(document.getElementById('seedTotalStudentInput').value, 10) || 12;
+      const seat = Math.max(1, Math.min(total, parseInt(document.getElementById('seedSeatStudentInput').value, 10) || 1));
+      const name = (document.getElementById('seedNameStudentInput').value || `Seat #${seat}`).trim();
+
+      const roles = computeDeterministicRoles(seedCode, total, gameState.impostorCount);
+      const assignedRole = roles[seat - 1] || 'CITIZEN';
+
+      // Also sync the local gameState roster to match this seed so everything is consistent
+      gameState.roomCode = seedCode;
+      gameState.players = roles.map((r, idx) => ({
+        id: 'seed_seat_' + (idx + 1),
+        seat: idx + 1,
+        name: (idx + 1 === seat) ? name : `Player #${idx + 1}`,
+        role: r,
+        alive: true,
+        isBot: idx + 1 !== seat,
+        location: null,
+        nightTarget: null,
+        voteTarget: null,
+        hauntTarget: null,
+        haunted: false
+      }));
+
+      studentSession.joined = true;
+      studentSession.isOfflineSeed = true;
+      studentSession.playerId = 'seed_seat_' + seat;
+      studentSession.name = name;
+      studentSession.seatNumber = seat;
+      generateNewDecoyCode();
+
+      document.getElementById('studentJoinCard').classList.add('hidden');
+      document.getElementById('studentActiveDashboard').classList.remove('hidden');
+      playTone('success');
+      showToast(`Seed Role Unlocked for Seat #${seat}! Hold SPACE to peek.`);
+      renderAll();
+    }
+
+    function leaveStudentSession() {
+      // If Teacher Mode is unlocked, allow instant seat switching for testing; otherwise require Teacher PIN!
+      if (!securityState.isTeacherUnlocked) {
+        securityState.pendingTargetAction = 'switchSeat';
+        document.getElementById('pinModalInput').value = '';
+        openModal('teacherPinModal');
+        showToast('🔒 Switching seats requires the Teacher PIN so students cannot peek at other roles.');
+        return;
+      }
+      clearStudentSeatLockAndLeave();
+    }
+
+    function clearStudentSeatLockAndLeave() {
+      localStorage.removeItem('chameleon_seat_lock');
+      studentSession.joined = false;
+      studentSession.peeking = false;
+      document.getElementById('studentJoinCard').classList.remove('hidden');
+      document.getElementById('studentActiveDashboard').classList.add('hidden');
+      refreshSimStudentDropdown();
+    }
+
+    function setPeekState(isPeeking) {
+      studentSession.peeking = isPeeking;
+      const container = document.getElementById('secretRoleContainer');
+      const btn = document.getElementById('peekShieldBtn');
+      if (!container || !btn) return;
+
+      if (isPeeking) {
+        container.classList.remove('privacy-blur');
+        container.classList.add('privacy-revealed');
+        btn.innerHTML = `<span>🔓</span> <span>SHIELD LIFTED — RELEASE TO HIDE</span>`;
+      } else {
+        container.classList.add('privacy-blur');
+        container.classList.remove('privacy-revealed');
+        btn.innerHTML = `<span>👁️</span> <span>HOLD TO PEEK AT ROLE & SECRET ACTIONS</span>`;
+      }
+    }
+
+    function getActiveStudentPlayer() {
+      if (!studentSession.joined) return null;
+      return gameState.players.find(p => p.id === studentSession.playerId) || gameState.players[0];
+    }
+
+    // Student selects a location at Dusk
+    function studentSelectLocation(locId) {
+      const p = getActiveStudentPlayer();
+      if (!p || !p.alive) return;
+      p.location = locId;
+      playTone('click');
+      const t = THEMES[gameState.theme];
+      const locObj = t.locations.find(l => l.id === locId);
+      showToast(`Moved to ${locObj ? locObj.name : locId}`);
+      syncStudentActionToBackend({ playerId: p.id, location: locId });
+      renderAll();
+    }
+
+    // Student performs secret night action (Attack, Investigate, Protect)
+    function studentSelectNightTarget(targetId) {
+      const p = getActiveStudentPlayer();
+      const target = gameState.players.find(x => x.id === targetId);
+      if (!p || !target) return;
+
+      p.nightTarget = targetId;
+      playTone('success');
+
+      const t = THEMES[gameState.theme];
+      if (p.role === 'INVESTIGATOR') {
+        const isThreat = target.role === 'IMPACTOR';
+        studentSession.investigatedResult = {
+          targetName: target.name,
+          isThreat: isThreat,
+          text: isThreat
+            ? `⚠️ ALERT: ${target.name} tested POSITIVE as a ${t.roles.IMPACTOR.name}!`
+            : `✅ CLEAR: ${target.name} appears to be a loyal ${t.roles.CITIZEN.name}.`
+        };
+      }
+      showToast(`Target locked: ${target.name}`);
+      syncStudentActionToBackend({ playerId: p.id, nightTarget: targetId });
+      renderAll();
+    }
+
+    // Student casts day vote
+    function studentCastDayVote(targetId) {
+      const p = getActiveStudentPlayer();
+      const target = gameState.players.find(x => x.id === targetId);
+      if (!p || !p.alive || !target) return;
+      p.voteTarget = targetId;
+      playTone('click');
+      showToast(`Voted for ${target.name}`);
+      syncStudentActionToBackend({ playerId: p.id, voteTarget: targetId });
+      renderAll();
+    }
+
+    // Eliminated Ghost triggers a spooky Haunt on a suspect
+    function studentCastGhostHaunt(targetId) {
+      const p = getActiveStudentPlayer();
+      const target = gameState.players.find(x => x.id === targetId);
+      if (!p || !target) return;
+      triggerHauntOnPlayer(target.id);
+      p.hauntTarget = targetId;
+      syncStudentActionToBackend({
+        playerId: p.id,
+        deviceToken: studentSession.deviceToken,
+        hauntTarget: targetId
+      });
+    }
+
+    // Can be called from Ghost Terminal OR by clicking any player's Haunt button on Projector
+    function triggerHauntOnPlayer(targetId) {
+      const target = gameState.players.find(x => x.id === targetId);
+      if (!target) return;
+      gameState.players.forEach(x => x.haunted = false);
+      target.haunted = true;
+      target.hauntCount = (target.hauntCount || 0) + 1;
+      gameState.lastHauntEvent = {
+        targetId: target.id,
+        targetName: target.name,
+        timestamp: Date.now()
+      };
+      localTimerTracker.lastHauntTimestamp = gameState.lastHauntEvent.timestamp;
+      playRandomSpookySound(target.name);
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    // Interactive Decoy Keypad Mini-Task (For Citizens & Ghosts so everyone clicks at night!)
+    function generateNewDecoyCode() {
+      let code = '';
+      for (let i = 0; i < 4; i++) {
+        code += Math.floor(Math.random() * 9 + 1).toString();
+      }
+      studentSession.activeDecoyCode = code;
+      studentSession.enteredDecoyCode = '';
+    }
+
+    function pressDecoyKeypad(digit) {
+      if (digit === 'CLR') {
+        studentSession.enteredDecoyCode = '';
+        playTone('click');
+        renderStudentView();
+        return;
+      }
+      if (studentSession.enteredDecoyCode.length < 4) {
+        studentSession.enteredDecoyCode += digit;
+        playTone('click');
+      }
+      if (studentSession.enteredDecoyCode.length === 4) {
+        if (studentSession.enteredDecoyCode === studentSession.activeDecoyCode) {
+          gameState.taskProgress = Math.min(100, gameState.taskProgress + 5);
+          playTone('success');
+          showToast('+5% Added to Town Survival Bar!');
+          syncStudentActionToBackend({ playerId: studentSession.playerId, taskDelta: 5 });
+          generateNewDecoyCode();
+          checkWinConditions();
+        } else {
+          showToast('Frequency mismatch! Try again.');
+          studentSession.enteredDecoyCode = '';
+        }
+      }
+      renderAll();
+    }
+
+    /* ==========================================================================
+       8. TEACHER PHASE DIRECTOR & GAME LOOP ENGINE
+       ========================================================================== */
+    function advanceToNextPhase() {
+      const order = gameState.spatialMode
+        ? ['lobby', 'dusk', 'night', 'morning', 'voting']
+        : ['lobby', 'night', 'morning', 'voting'];
+
+      if (gameState.phase === 'lobby') {
+        // Assign fresh roles if starting from lobby
+        assignRolesToCurrentPlayers();
+        setPhase(gameState.spatialMode ? 'dusk' : 'night');
+        return;
+      }
+      if (gameState.phase === 'dusk') {
+        setPhase('night');
+      } else if (gameState.phase === 'night') {
+        setPhase('morning');
+      } else if (gameState.phase === 'morning') {
+        setPhase('voting');
+      } else if (gameState.phase === 'voting') {
+        resolveDayVotes();
+      } else if (gameState.phase === 'gameover') {
+        assignRolesAndStartNewMatch();
+      }
+    }
+
+    function setPhase(newPhase) {
+      const t = THEMES[gameState.theme];
+      gameState.phase = newPhase;
+      playTone('phase');
+
+      if (newPhase === 'dusk') {
+        setAuthoritativeTimer(25, false);
+        gameState.players.forEach(p => {
+          p.location = null;
+          p.nightTarget = null;
+          p.voteTarget = null;
+        });
+        // If in simulator mode, let bots pick rooms automatically
+        if (gameState.networkMode === 'sim') {
+          simulateBotLocations();
+        }
+        gameState.announcement = `DUSK: Every student has 25 seconds to choose one of the 4 sectors to visit tonight!`;
+      }
+
+      if (newPhase === 'night') {
+        setAuthoritativeTimer(35, false);
+        studentSession.investigatedResult = null;
+        generateNewDecoyCode();
+
+        // Ensure everyone has a room if Spatial Mode is ON
+        if (gameState.spatialMode) {
+          gameState.players.forEach(p => {
+            if (p.alive && !p.location) {
+              const randLoc = t.locations[Math.floor(Math.random() * t.locations.length)].id;
+              p.location = randLoc;
+            }
+          });
+        }
+
+        if (gameState.networkMode === 'sim') {
+          simulateBotNightActions();
+        }
+        gameState.announcement = `NIGHT FALLS (Round ${gameState.round}): Hold SPACEBAR to view your secret action, and complete night calibration tasks!`;
+      }
+
+      if (newPhase === 'morning') {
+        setAuthoritativeTimer(45, false);
+        resolveOvernightActions();
+      }
+
+      if (newPhase === 'voting') {
+        setAuthoritativeTimer(60, false);
+        gameState.players.forEach(p => p.voteTarget = null);
+        if (gameState.networkMode === 'sim') {
+          simulateBotVotes();
+        }
+        gameState.announcement = `OPEN TRIBUNAL: Interrogate suspects about their room alibis and lock in your vote on your Chromebook!`;
+      }
+
+      checkWinConditions();
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function resolveOvernightActions() {
+      const t = THEMES[gameState.theme];
+      const aliveBad = gameState.players.filter(p => p.alive && p.role === 'IMPACTOR');
+      const aliveProt = gameState.players.filter(p => p.alive && p.role === 'PROTECTOR');
+
+      // Find who the Bad Guys targeted
+      let attackedId = null;
+      for (const bad of aliveBad) {
+        if (bad.nightTarget) {
+          attackedId = bad.nightTarget;
+          break;
+        }
+      }
+
+      // Find who the Protectors shielded
+      const shieldedIds = new Set(aliveProt.map(p => p.nightTarget).filter(Boolean));
+
+      if (!attackedId) {
+        gameState.announcement = `🌅 MORNING REPORT: The night passed quietly! No one was harmed overnight.`;
+        return;
+      }
+
+      const victim = gameState.players.find(p => p.id === attackedId);
+      if (!victim) return;
+
+      const locObj = t.locations.find(l => l.id === victim.location);
+      const roomPhrase = (gameState.spatialMode && locObj)
+        ? ` inside <strong>${locObj.icon} ${locObj.name}</strong>`
+        : '';
+
+      if (shieldedIds.has(victim.id)) {
+        playTone('success');
+        gameState.announcement = `🛡️ MIRACulous RESCUE! <strong>${victim.name}</strong> was attacked${roomPhrase}, but the <strong>${t.roles.PROTECTOR.name}</strong> intervened just in time!`;
+      } else {
+        victim.alive = false;
+        playTone('dramatic');
+        const witnesses = gameState.spatialMode
+          ? gameState.players.filter(p => p.alive && p.location === victim.location && p.id !== victim.id).map(p => p.name)
+          : [];
+        const witnessNote = witnesses.length > 0
+          ? ` Witnesses spotted in that sector: <strong>${witnesses.join(', ')}</strong>!`
+          : '';
+        gameState.announcement = `🚨 OVERNIGHT ATTACK! <strong>${victim.name}</strong> was eliminated${roomPhrase}!${witnessNote}`;
+      }
+    }
+
+    function resolveDayVotes() {
+      const t = THEMES[gameState.theme];
+      const tally = {};
+      gameState.players.filter(p => p.alive && p.voteTarget).forEach(p => {
+        tally[p.voteTarget] = (tally[p.voteTarget] || 0) + 1;
+      });
+
+      let topId = null;
+      let topVotes = 0;
+      let tie = false;
+
+      Object.entries(tally).forEach(([id, count]) => {
+        if (count > topVotes) {
+          topVotes = count;
+          topId = id;
+          tie = false;
+        } else if (count === topVotes) {
+          tie = true;
+        }
+      });
+
+      if (!topId || tie) {
+        gameState.announcement = `⚖️ TRIBUNAL DEADLOCK: The vote ended in a tie (or no votes cast). Nobody was banished today! Prepare for Night ${gameState.round + 1}.`;
+      } else {
+        const banished = gameState.players.find(p => p.id === topId);
+        if (banished) {
+          banished.alive = false;
+          const roleInfo = t.roles[banished.role];
+          playTone('dramatic');
+          gameState.announcement = `⚖️ VERDICT DELIVERED: The class voted to banish <strong>${banished.name}</strong> (${topVotes} votes). Their true identity was: <strong>${roleInfo.icon} ${roleInfo.name}</strong>!`;
+        }
+      }
+
+      gameState.round++;
+      gameState.players.forEach(p => p.voteTarget = null);
+      if (!checkWinConditions()) {
+        // Stay on morning/summary state briefly so teacher can click Next Phase for Dusk
+        gameState.phase = 'lobby_between';
+      }
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function checkWinConditions() {
+      const t = THEMES[gameState.theme];
+      const aliveBad = gameState.players.filter(p => p.alive && p.role === 'IMPACTOR').length;
+      const aliveGood = gameState.players.filter(p => p.alive && p.role !== 'IMPACTOR').length;
+
+      if (gameState.taskProgress >= 100) {
+        gameState.phase = 'gameover';
+        gameState.announcement = `🎉 VICTORY FOR ${t.goodPlural.toUpperCase()}! The class reached 100% on ${t.taskBarName} and neutralized the threat!`;
+        playTone('success');
+        return true;
+      }
+
+      if (aliveBad === 0 && gameState.players.length > 0 && gameState.phase !== 'lobby') {
+        gameState.phase = 'gameover';
+        gameState.announcement = `🎉 VICTORY FOR ${t.goodPlural.toUpperCase()}! All ${t.badPlural} have been uncovered and banished!`;
+        playTone('success');
+        return true;
+      }
+
+      if (aliveBad >= aliveGood && aliveBad > 0 && gameState.phase !== 'lobby') {
+        gameState.phase = 'gameover';
+        const badNames = gameState.players.filter(p => p.role === 'IMPACTOR').map(p => p.name).join(', ');
+        gameState.announcement = `💀 ${t.badPlural.toUpperCase()} WIN! They have overtaken the ${t.goodPlural}. The secret ${t.badPlural} were: <strong>${badNames}</strong>!`;
+        playTone('dramatic');
+        return true;
+      }
+      return false;
+    }
+
+    /* ==========================================================================
+       9. BOT SIMULATOR AI HELPERS
+       ========================================================================== */
+    function simulateBotLocations() {
+      const t = THEMES[gameState.theme];
+      gameState.players.forEach(p => {
+        if (p.isBot && p.alive) {
+          p.location = t.locations[Math.floor(Math.random() * t.locations.length)].id;
+        }
+      });
+    }
+
+    function simulateBotNightActions() {
+      const aliveGood = gameState.players.filter(p => p.alive && p.role !== 'IMPACTOR');
+      const aliveAll = gameState.players.filter(p => p.alive);
+
+      gameState.players.forEach(p => {
+        if (!p.isBot || !p.alive) return;
+        if (p.role === 'IMPACTOR' && aliveGood.length > 0) {
+          // Pick a victim (prefer same room if spatial & toggle enabled)
+          let pool = aliveGood;
+          if (gameState.spatialMode && gameState.sameRoomKillOnly) {
+            const sameRoom = aliveGood.filter(g => g.location === p.location);
+            if (sameRoom.length > 0) pool = sameRoom;
+          }
+          p.nightTarget = pool[Math.floor(Math.random() * pool.length)].id;
+        } else if (p.role === 'INVESTIGATOR' || p.role === 'PROTECTOR') {
+          const others = aliveAll.filter(x => x.id !== p.id);
+          if (others.length > 0) {
+            p.nightTarget = others[Math.floor(Math.random() * others.length)].id;
+          }
+        }
+      });
+
+      // Bots also contribute a bit to the task bar
+      gameState.taskProgress = Math.min(95, gameState.taskProgress + 8);
+    }
+
+    function simulateBotVotes() {
+      const alive = gameState.players.filter(p => p.alive);
+      if (alive.length === 0) return;
+      gameState.players.forEach(p => {
+        if (p.isBot && p.alive) {
+          const candidates = alive.filter(x => x.id !== p.id);
+          if (candidates.length > 0) {
+            p.voteTarget = candidates[Math.floor(Math.random() * candidates.length)].id;
+          }
+        }
+      });
+    }
+
+    function simulateBotActionsForCurrentPhase() {
+      if (gameState.phase === 'dusk') simulateBotLocations();
+      if (gameState.phase === 'night') simulateBotNightActions();
+      if (gameState.phase === 'voting') simulateBotVotes();
+      showToast('⚡ Simulated bot moves for current phase!');
+      renderAll();
+    }
+
+    /* ==========================================================================
+       10. TEACHER GOD MODE ACTIONS
+       ========================================================================== */
+    function toggleGodDrawer() {
+      const drawer = document.getElementById('teacherGodDrawer');
+      drawer.classList.toggle('hidden');
+      playTone('click');
+    }
+
+    function toggleRevealRolesOnGodPanel() {
+      gameState.revealRolesOnGodPanel = !gameState.revealRolesOnGodPanel;
+      const btn = document.getElementById('btnToggleSpyRoles');
+      btn.textContent = gameState.revealRolesOnGodPanel
+        ? '🙈 Hide Secret Roles on Roster'
+        : '👁️ Show Secret Roles (Teacher Eyes Only)';
+      renderAll();
+    }
+
+    function setNetworkMode(mode) {
+      gameState.networkMode = mode;
+      const badge = document.getElementById('networkBadge');
+      if (mode === 'sim') {
+        badge.textContent = '🤖 Sim Mode';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+      } else if (mode === 'sheets') {
+        badge.textContent = '🟢 Sheets Live Sync';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
+        if (!gasWebAppUrl) openModal('backendModal');
+      } else {
+        badge.textContent = '🛡️ Offline Seed Mode';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+      }
+      renderAll();
+    }
+
+    function setSpatialMode(enabled) {
+      gameState.spatialMode = enabled;
+      showToast(enabled ? 'Spatial Locations Mode Enabled' : 'Classic Mode Enabled (No Rooms)');
+      renderAll();
+    }
+
+    function updateRoleCounts() {
+      const val = parseInt(document.getElementById('godImpostorCount').value, 10) || 2;
+      gameState.impostorCount = Math.max(1, Math.min(6, val));
+    }
+
+    function applyRoomCodeChange() {
+      const code = (document.getElementById('godRoomCodeInput').value || 'WOLF').trim().toUpperCase();
+      gameState.roomCode = code;
+      document.getElementById('studentRoomInput').value = code;
+      showToast(`Room / Seed Code updated to ${code}`);
+      renderAll();
+    }
+
+    function assignRolesToCurrentPlayers() {
+      const seedKey = gameState.networkMode === 'seed'
+        ? gameState.roomCode
+        : (gameState.roomCode + '_' + Date.now());
+      const roles = computeDeterministicRoles(seedKey, gameState.players.length, gameState.impostorCount);
+      gameState.matchSessionId = 'match_' + Date.now();
+      localStorage.removeItem('chameleon_seat_lock');
+
+      gameState.players.forEach((p, idx) => {
+        p.role = roles[idx];
+        p.alive = true;
+        p.deviceToken = null;
+        p.location = null;
+        p.nightTarget = null;
+        p.voteTarget = null;
+        p.haunted = false;
+        p.hauntCount = 0;
+      });
+    }
+
+    function assignRolesAndStartNewMatch() {
+      assignRolesToCurrentPlayers();
+      gameState.phase = 'lobby';
+      gameState.round = 1;
+      gameState.taskProgress = 10;
+      setAuthoritativeTimer(45, true);
+      gameState.announcement = `🎲 Roles have been freshly shuffled for ${gameState.players.length} players and seat locks reset! Click START GAME when ready.`;
+      playTone('phase');
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function togglePlayerAliveState(playerId) {
+      const p = gameState.players.find(x => x.id === playerId);
+      if (!p) return;
+      p.alive = !p.alive;
+      showToast(`${p.name} is now ${p.alive ? 'ALIVE' : 'ELIMINATED'}`);
+      checkWinConditions();
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function toggleTimerPause() {
+      gameState.timerPaused = !gameState.timerPaused;
+      if (!gameState.timerPaused) {
+        // Recalculate phaseEndTime from current remaining seconds when unpausing
+        gameState.phaseEndTime = Date.now() + gameState.timerSeconds * 1000;
+      }
+      gameState.phaseStateId = (gameState.phaseStateId || 1) + 1;
+      document.getElementById('timerPauseBtn').textContent = gameState.timerPaused ? '▶️ Resume' : '⏸️ Pause';
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function addTimerSeconds(sec) {
+      gameState.timerSeconds += sec;
+      gameState.phaseEndTime = Date.now() + gameState.timerSeconds * 1000;
+      gameState.phaseStateId = (gameState.phaseStateId || 1) + 1;
+      updateProjectorTimerUI();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function togglePlayerAliveState(playerId) {
+      const p = gameState.players.find(x => x.id === playerId);
+      if (!p) return;
+      p.alive = !p.alive;
+      showToast(`${p.name} is now ${p.alive ? 'ALIVE' : 'ELIMINATED'}`);
+      checkWinConditions();
+      renderAll();
+      pushStateToGoogleSheetIfNeeded();
+    }
+
+    function toggleTimerPause() {
+      gameState.timerPaused = !gameState.timerPaused;
+      document.getElementById('timerPauseBtn').textContent = gameState.timerPaused ? '▶️ Resume' : '⏸️ Pause';
+    }
+
+    function addTimerSeconds(sec) {
+      gameState.timerSeconds += sec;
+      updateProjectorTimerUI();
+    }
+
+    function addCustomPlayerPrompt() {
+      document.getElementById('newPlayerNameModalInput').value = '';
+      openModal('addPlayerModal');
+    }
+
+    function confirmAddCustomPlayer() {
+      const name = (document.getElementById('newPlayerNameModalInput').value || '').trim();
+      if (!name) return;
+      const newSeat = gameState.players.length + 1;
+      gameState.players.push({
+        id: 'seat_' + newSeat + '_' + Date.now(),
+        seat: newSeat,
+        name: name,
+        role: 'CITIZEN',
+        alive: true,
+        isBot: false,
+        location: null,
+        nightTarget: null,
+        voteTarget: null,
+        hauntTarget: null,
+        haunted: false
+      });
+      closeModal('addPlayerModal');
+      refreshSimStudentDropdown();
+      renderAll();
+    }
+
+    /* ==========================================================================
+       11. GOOGLE SHEETS APPS SCRIPT SYNC FUNCTIONS
+       ========================================================================== */
+    function saveGasUrl() {
+      const url = (document.getElementById('gasUrlInput').value || '').trim();
+      gasWebAppUrl = url;
+      localStorage.setItem('chameleon_gas_url', url);
+      if (url) {
+        setNetworkMode('sheets');
+        pushStateToGoogleSheetIfNeeded();
+        showToast('Connected to Google Sheets Web App!');
+      } else {
+        setNetworkMode('sim');
+        showToast('Cleared URL. Switched to Bot Simulator Mode.');
+      }
+      closeModal('backendModal');
+    }
+
+    async function pushStateToGoogleSheetIfNeeded() {
+      if (gameState.networkMode !== 'sheets' || !gasWebAppUrl) return;
+      try {
+        await fetch(gasWebAppUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'pushState',
+            room: gameState.roomCode,
+            state: gameState
+          })
+        });
+      } catch (e) {}
+    }
+
+    async function syncStudentActionToBackend(payload) {
+      if (gameState.networkMode !== 'sheets' || !gasWebAppUrl) return;
+      try {
+        await fetch(gasWebAppUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'playerAction',
+            room: gameState.roomCode,
+            deviceToken: studentSession.deviceToken,
+            ...payload
+          })
+        });
+      } catch (e) {}
+    }
+
+    async function pullStateFromGoogleSheet() {
+      if (!gasWebAppUrl) return;
+      try {
+        const res = await fetch(`${gasWebAppUrl}?action=getState&room=${encodeURIComponent(gameState.roomCode)}`);
+        const data = await res.json();
+        if (data && data.state && data.state.players) {
+          const remote = data.state;
+
+          // Preserve local smooth countdown UNLESS the teacher actually changed the phase or timer state
+          const phaseChanged = remote.phase !== localTimerTracker.lastSeenPhase ||
+                               remote.phaseStateId !== localTimerTracker.lastSeenPhaseStateId;
+
+          const currentSeconds = gameState.timerSeconds;
+          const currentEndTime = gameState.phaseEndTime;
+          const currentPaused = gameState.timerPaused;
+
+          gameState = { ...gameState, ...remote };
+
+          if (phaseChanged) {
+            localTimerTracker.lastSeenPhase = remote.phase;
+            localTimerTracker.lastSeenPhaseStateId = remote.phaseStateId;
+          } else {
+            gameState.timerSeconds = currentSeconds;
+            gameState.phaseEndTime = currentEndTime;
+            gameState.timerPaused = currentPaused;
+          }
+
+          // If a new Ghost Haunt occurred remotely, play a random spooky sound!
+          if (remote.lastHauntEvent && remote.lastHauntEvent.timestamp > localTimerTracker.lastHauntTimestamp) {
+            localTimerTracker.lastHauntTimestamp = remote.lastHauntEvent.timestamp;
+            playRandomSpookySound(remote.lastHauntEvent.targetName);
+          }
+
+          renderAll();
+        }
+      } catch (e) {}
+    }
+
+    function copyGasCode() {
+      const textarea = document.getElementById('gasCodeTextarea');
+      textarea.select();
+      document.execCommand('copy');
+      showToast('📋 Copied Code.gs to clipboard!');
+    }
+
+    /* ==========================================================================
+       12. UI RENDERING (PROJECTOR & STUDENT CHROMEBOOK VIEWS)
+       ========================================================================== */
+    function renderAll() {
+      renderProjectorView();
+      renderStudentView();
+    }
+
+    function updateProjectorTimerUI() {
+      const m = String(Math.floor(gameState.timerSeconds / 60)).padStart(2, '0');
+      const s = String(gameState.timerSeconds % 60).padStart(2, '0');
+      const el = document.getElementById('projTimerDisplay');
+      if (el) el.textContent = `${m}:${s}`;
+    }
+
+    function renderProjectorView() {
+      const t = THEMES[gameState.theme];
+      const aliveCount = gameState.players.filter(p => p.alive).length;
+
+      document.getElementById('projRoomCodeDisplay').textContent = gameState.roomCode;
+      document.getElementById('projAliveCountDisplay').textContent = `${aliveCount} / ${gameState.players.length}`;
+      document.getElementById('projRoundLabel').textContent = `Round ${gameState.round}`;
+      document.getElementById('projModePill').textContent = gameState.spatialMode ? '🗺️ Spatial Rooms ON' : '🎭 Classic Mode';
+
+      // Phase Header
+      const pInfo = t.phaseText[gameState.phase] || { title: 'ROUND SUMMARY', sub: 'Ready for next Dusk phase' };
+      document.getElementById('projPhaseEmoji').textContent = t.emoji;
+      document.getElementById('projPhaseTitle').textContent = pInfo.title;
+      document.getElementById('projPhaseSubtitle').textContent = pInfo.sub;
+      updateProjectorTimerUI();
+
+      // Task Progress Bar
+      document.getElementById('projTaskTitle').textContent = `${t.taskBarName} (Citizen Tasks)`;
+      document.getElementById('projTaskPct').textContent = `${gameState.taskProgress}%`;
+      document.getElementById('projTaskFill').style.width = `${gameState.taskProgress}%`;
+
+      // Next Phase Button Label
+      const nextBtnLabel = document.getElementById('btnNextPhaseLabel');
+      if (gameState.phase === 'lobby' || gameState.phase === 'lobby_between') {
+        nextBtnLabel.textContent = gameState.spatialMode ? 'START DUSK (PICK ROOMS)' : 'START NIGHT PHASE';
+      } else if (gameState.phase === 'dusk') {
+        nextBtnLabel.textContent = 'START NIGHT PHASE';
+      } else if (gameState.phase === 'night') {
+        nextBtnLabel.textContent = 'REVEAL MORNING REPORT';
+      } else if (gameState.phase === 'morning') {
+        nextBtnLabel.textContent = 'OPEN DAY VOTING';
+      } else if (gameState.phase === 'voting') {
+        nextBtnLabel.textContent = 'EXECUTE HIGHEST VOTE';
+      } else {
+        nextBtnLabel.textContent = 'PLAY NEW ROUND';
+      }
+
+      // Announcement Chronicle
+      document.getElementById('projNewsBody').innerHTML = gameState.announcement;
+      document.getElementById('projVictoryActions').classList.toggle('hidden', gameState.phase !== 'gameover');
+      document.getElementById('btnResolveVotes').classList.toggle('hidden', gameState.phase !== 'voting');
+
+      // Spatial Locations Grid
+      const locGrid = document.getElementById('projLocationsGrid');
+      if (!gameState.spatialMode) {
+        locGrid.classList.add('hidden');
+      } else {
+        locGrid.classList.remove('hidden');
+        locGrid.innerHTML = t.locations.map(loc => {
+          const occupants = gameState.players.filter(p => p.alive && p.location === loc.id);
+          const showNames = gameState.phase === 'morning' || gameState.phase === 'voting' || gameState.revealRolesOnGodPanel;
+          return `
+            <div class="theme-card rounded-2xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-2xl">${loc.icon}</span>
+                  <div>
+                    <h4 class="font-bold text-sm">${loc.name}</h4>
+                    <p class="text-[11px] opacity-70">${loc.desc}</p>
+                  </div>
+                </div>
+                <span class="font-mono text-xs px-2 py-0.5 rounded-full bg-white/10 font-bold">
+                  ${occupants.length} here
+                </span>
+              </div>
+              <div class="pt-1 flex flex-wrap gap-1">
+                ${occupants.length === 0
+                  ? `<span class="text-[11px] opacity-50 italic">No one stationed here</span>`
+                  : occupants.map(o => `
+                      <span class="text-[11px] px-2 py-0.5 rounded bg-white/10 font-medium">
+                        ${showNames ? o.name : '🕵️ Someone'}
+                      </span>
+                    `).join('')
+                }
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Vote Tally Map
+      const voteCounts = {};
+      gameState.players.filter(p => p.alive && p.voteTarget).forEach(p => {
+        voteCounts[p.voteTarget] = (voteCounts[p.voteTarget] || 0) + 1;
+      });
+
+      // Roster Cards
+      const grid = document.getElementById('projPlayersGrid');
+      grid.innerHTML = gameState.players.map(p => {
+        const rInfo = t.roles[p.role] || t.roles.CITIZEN;
+        const votesAgainst = voteCounts[p.id] || 0;
+        const locObj = t.locations.find(l => l.id === p.location);
+
+        return `
+          <div
+            onclick="${p.haunted ? `playRandomSpookySound('${p.name.replace(/'/g, "\\'")}')` : ''}"
+            class="theme-card rounded-xl p-3.5 flex flex-col justify-between transition relative ${!p.alive ? 'opacity-50 grayscale' : ''} ${p.haunted ? 'haunted-card' : ''}"
+          >
+            ${p.haunted ? `<div class="floating-ghost-badge absolute -top-3 right-2 text-2xl">👻</div>` : ''}
+            <div class="flex items-start justify-between gap-1">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-black/40 opacity-75">#${p.seat}</span>
+                <span class="font-bold text-sm truncate" title="${p.name}">${p.name}</span>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button onclick="event.stopPropagation(); triggerHauntOnPlayer('${p.id}')" class="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/30" title="Haunt ${p.name} with random spooky sound!">
+                  👻
+                </button>
+                <button onclick="event.stopPropagation(); togglePlayerAliveState('${p.id}')" class="text-xs px-1.5 py-0.5 rounded hover:bg-white/15" title="Toggle Alive/Eliminated">
+                  ${p.alive ? '❤️' : '💀'}
+                </button>
+              </div>
+            </div>
+
+            <div class="my-2 space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="${p.alive ? 'text-emerald-300' : 'text-red-400'} font-semibold">
+                  ${p.alive ? '● ALIVE' : '👻 PHANTOM'}
+                </span>
+                ${votesAgainst > 0 ? `<span class="px-2 py-0.5 rounded-full bg-red-500 text-white font-bold">${votesAgainst} Votes</span>` : ''}
+              </div>
+
+              ${gameState.spatialMode && locObj && (gameState.phase === 'morning' || gameState.phase === 'voting')
+                ? `<div class="text-[11px] opacity-80 truncate">📍 ${locObj.icon} ${locObj.name}</div>`
+                : ''
+              }
+
+              ${p.haunted ? `<div class="text-[10px] text-purple-300 font-bold">👻 Haunted! (Click for Sound)</div>` : ''}
+
+              ${gameState.revealRolesOnGodPanel || gameState.phase === 'gameover'
+                ? `<div class="mt-1 px-2 py-1 rounded bg-black/60 border border-white/15 text-[11px] font-bold flex items-center gap-1">
+                    <span>${rInfo.icon}</span> <span>${rInfo.name}</span>
+                  </div>`
+                : ''
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderStudentView() {
+      if (!studentSession.joined) return;
+      const p = getActiveStudentPlayer();
+      if (!p) return;
+
+      const t = THEMES[gameState.theme];
+      const rInfo = t.roles[p.role] || t.roles.CITIZEN;
+
+      // Top Status
+      document.getElementById('studentDisplayName').textContent = `${p.name} (#${p.seat})`;
+      const badge = document.getElementById('studentAliveBadge');
+      if (p.alive) {
+        badge.textContent = 'ALIVE';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold';
+      } else {
+        badge.textContent = '👻 PHANTOM MODE';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-semibold';
+      }
+
+      const pText = t.phaseText[gameState.phase] || { title: 'Waiting for Next Phase' };
+      document.getElementById('studentPhaseLabel').textContent = `${pText.title} (Round ${gameState.round})`;
+
+      // Task Bar
+      document.getElementById('studentTaskBarTitle').textContent = t.taskBarName;
+      document.getElementById('studentTaskBarPct').textContent = `${gameState.taskProgress}%`;
+      document.getElementById('studentTaskBarFill').style.width = `${gameState.taskProgress}%`;
+
+      // Role Card inside Anti-Peek Shield
+      document.getElementById('studentRoleIcon').textContent = rInfo.icon;
+      document.getElementById('studentRoleTitle').textContent = rInfo.name;
+      document.getElementById('studentRoleDesc').textContent = rInfo.desc;
+
+      const alignBadge = document.getElementById('studentAlignmentBadge');
+      const teamHint = document.getElementById('studentTeammatesHint');
+      if (p.role === 'IMPACTOR') {
+        alignBadge.textContent = `${t.badPlural.toUpperCase()} TEAM`;
+        alignBadge.className = 'text-xs font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40';
+        const fellow = gameState.players.filter(x => x.role === 'IMPACTOR' && x.id !== p.id).map(x => x.name);
+        teamHint.classList.remove('hidden');
+        teamHint.textContent = fellow.length > 0 ? `Your Fellow ${t.badPlural}: ${fellow.join(', ')}` : `You are the solo ${rInfo.name}!`;
+      } else {
+        alignBadge.textContent = `${t.goodPlural.toUpperCase()} TEAM`;
+        alignBadge.className = 'text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        teamHint.classList.add('hidden');
+      }
+
+      // Spatial Room Alibi inside Anti-Peek
+      const alibiBox = document.getElementById('studentRoomAlibiBox');
+      if (!gameState.spatialMode) {
+        alibiBox.classList.add('hidden');
+      } else {
+        alibiBox.classList.remove('hidden');
+        const locObj = t.locations.find(l => l.id === p.location);
+        document.getElementById('studentCurrentRoomName').textContent = locObj ? `${locObj.icon} ${locObj.name}` : 'None Selected';
+        if (locObj && (gameState.phase === 'night' || gameState.phase === 'morning' || gameState.phase === 'voting')) {
+          const roommates = gameState.players
+            .filter(x => x.alive && x.location === p.location && x.id !== p.id)
+            .map(x => x.name);
+          document.getElementById('studentRoommatesList').textContent = roommates.length > 0
+            ? `In this sector with you: ${roommates.join(', ')}`
+            : `You are completely alone in this sector!`;
+        } else {
+          document.getElementById('studentRoommatesList').textContent = 'Roommates will be revealed once Night begins.';
+        }
+      }
+
+      // Secret Night Action inside Anti-Peek Shield
+      const secretActionBox = document.getElementById('studentSecretActionBox');
+      const aliveTargets = gameState.players.filter(x => x.alive && x.id !== p.id);
+
+      if (!p.alive) {
+        secretActionBox.innerHTML = `
+          <div class="text-xs text-purple-300 font-semibold">
+            👻 You were eliminated, but you can still help from beyond! Use the Ghost Terminal below to boost the Task Bar or Haunt a suspect.
+          </div>
+        `;
+      } else if (gameState.phase !== 'night') {
+        secretActionBox.innerHTML = `
+          <div class="text-xs opacity-75">
+            Secret role abilities are only active during the <strong>Night Phase</strong>.
+          </div>
+        `;
+      } else if (p.role === 'IMPACTOR') {
+        secretActionBox.innerHTML = `
+          <div class="text-xs font-bold text-red-300">🗡️ Select a Night Target to Eliminate:</div>
+          <div class="grid grid-cols-2 gap-2">
+            ${aliveTargets.filter(x => x.role !== 'IMPACTOR').map(target => `
+              <button onclick="studentSelectNightTarget('${target.id}')" class="p-2 rounded-lg text-xs font-semibold border transition ${p.nightTarget === target.id ? 'bg-red-500 text-white border-white' : 'bg-black/40 border-white/15 hover:bg-white/10'}">
+                ${target.name}
+              </button>
+            `).join('')}
+          </div>
+        `;
+      } else if (p.role === 'INVESTIGATOR') {
+        secretActionBox.innerHTML = `
+          <div class="text-xs font-bold text-cyan-300">🔮 Select 1 Player to Investigate Tonight:</div>
+          ${studentSession.investigatedResult
+            ? `<div class="p-3 rounded-lg bg-black/60 border border-cyan-400/40 text-xs font-bold">${studentSession.investigatedResult.text}</div>`
+            : `<div class="grid grid-cols-2 gap-2">
+                ${aliveTargets.map(target => `
+                  <button onclick="studentSelectNightTarget('${target.id}')" class="p-2 rounded-lg text-xs font-semibold border bg-black/40 border-white/15 hover:bg-white/10">
+                    🔍 ${target.name}
+                  </button>
+                `).join('')}
+              </div>`
+          }
+        `;
+      } else if (p.role === 'PROTECTOR') {
+        secretActionBox.innerHTML = `
+          <div class="text-xs font-bold text-emerald-300">🛡️ Select 1 Player to Shield Tonight:</div>
+          <div class="grid grid-cols-2 gap-2">
+            ${gameState.players.filter(x => x.alive).map(target => `
+              <button onclick="studentSelectNightTarget('${target.id}')" class="p-2 rounded-lg text-xs font-semibold border transition ${p.nightTarget === target.id ? 'bg-emerald-500 text-black border-white' : 'bg-black/40 border-white/15 hover:bg-white/10'}">
+                🛡️ ${target.name}
+              </button>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        secretActionBox.innerHTML = `
+          <div class="text-xs text-emerald-300">
+            ✅ As a loyal <strong>${rInfo.name}</strong>, complete the calibration keypad below to fill the ${t.taskBarName} bar!
+          </div>
+        `;
+      }
+
+      // Public / Decoy Activity Card (Dusk Location Picker, Night Keypad Task, Day Voting, Ghost Mode)
+      const pubCard = document.getElementById('studentPublicActionCard');
+
+      if (!p.alive) {
+        // GHOST MODE CONTROLLER
+        pubCard.innerHTML = `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-sm text-purple-300">👻 Phantom Frequency Terminal</h4>
+              <span class="text-[11px] opacity-75">Help your team from beyond!</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-2">
+              <div class="text-xs font-semibold">1. Trigger a Spooky Haunt on the Projector:</div>
+              <div class="grid grid-cols-3 gap-1.5">
+                ${gameState.players.filter(x => x.alive).map(target => `
+                  <button onclick="studentCastGhostHaunt('${target.id}')" class="py-1.5 px-2 rounded-lg text-xs bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30 truncate">
+                    👻 ${target.name}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            ${renderDecoyKeypadHTML('2. Ghost Calibration Task (+5% Town Bar)')}
+          </div>
+        `;
+        return;
+      }
+
+      if (gameState.phase === 'dusk' && gameState.spatialMode) {
+        pubCard.innerHTML = `
+          <div class="space-y-3">
+            <h4 class="font-bold text-sm">📍 Choose Your Location for Tonight:</h4>
+            <p class="text-xs opacity-75">You will see who else visits the same location—and if an attack happens, the room will be announced!</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              ${t.locations.map(loc => `
+                <button onclick="studentSelectLocation('${loc.id}')" class="p-3.5 rounded-xl border text-left transition flex items-center gap-3 ${p.location === loc.id ? 'bg-amber-500/25 border-amber-400' : 'bg-black/40 border-white/15 hover:bg-white/10'}">
+                  <span class="text-2xl">${loc.icon}</span>
+                  <div>
+                    <div class="font-bold text-sm">${loc.name}</div>
+                    <div class="text-[11px] opacity-70">${loc.desc}</div>
+                  </div>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (gameState.phase === 'night') {
+        pubCard.innerHTML = renderDecoyKeypadHTML(`⚡ Night Calibration Task (${t.taskBarName} +5%)`);
+      } else if (gameState.phase === 'voting') {
+        pubCard.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-sm">⚖️ Cast Your Tribunal Vote</h4>
+              <span class="text-xs opacity-75">Tap a suspect to lock in your vote</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              ${gameState.players.filter(x => x.alive && x.id !== p.id).map(target => `
+                <button onclick="studentCastDayVote('${target.id}')" class="p-2.5 rounded-xl border text-xs font-bold transition ${p.voteTarget === target.id ? 'theme-accent-btn border-white' : 'bg-black/40 border-white/15 hover:bg-white/10'}">
+                  🗳️ ${target.name}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        pubCard.innerHTML = `
+          <div class="space-y-3">
+            <div class="p-3.5 rounded-xl bg-black/40 border border-white/10 text-xs space-y-1">
+              <div class="font-bold text-amber-300">📢 Latest Classroom Bulletin:</div>
+              <p>${gameState.announcement}</p>
+            </div>
+            ${renderDecoyKeypadHTML('🔧 Practice Calibration Task (+5% Town Bar)')}
+          </div>
+        `;
+      }
+    }
+
+    function renderDecoyKeypadHTML(heading) {
+      return `
+        <div class="space-y-2.5 pt-1">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold">${heading}</span>
+            <span class="opacity-75">Everyone clicks so nobody sounds suspicious!</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 p-3 rounded-xl bg-black/60 border border-white/15 font-mono text-center">
+            <div>
+              <div class="text-[10px] uppercase opacity-70">Target Frequency</div>
+              <div class="text-lg font-extrabold tracking-widest text-amber-400">${studentSession.activeDecoyCode}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase opacity-70">Your Input</div>
+              <div class="text-lg font-extrabold tracking-widest text-emerald-400">${studentSession.enteredDecoyCode.padEnd(4, '•')}</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-5 gap-1.5">
+            ${['1','2','3','4','5','6','7','8','9','CLR'].map(key => `
+              <button onclick="pressDecoyKeypad('${key}')" class="py-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 font-mono font-bold text-sm transition">
+                ${key}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /* ==========================================================================
+       13. MODAL & TOAST UTILITIES
+       ========================================================================== */
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = 'px-4 py-2.5 rounded-xl bg-black/90 border border-white/20 text-white text-xs font-semibold shadow-lg transition-all';
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+      }, 2800);
+    }
+  </script>
+</body>
+</html>
