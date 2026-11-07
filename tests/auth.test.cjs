@@ -174,3 +174,24 @@ test('embedded deployment script matches Code.gs and the QR library runs locally
   const decoded = require('jsqr')(pixels, size, size);
   assert.equal(decoded.data, url);
 });
+
+test('QR dialog is not inside the hidden group-reset dialog', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const section = html.slice(html.indexOf('<div id="groupActionModal"'), html.indexOf('CORE APPLICATION JAVASCRIPT'));
+  const stack = [];
+  let found = false;
+  for (const match of section.matchAll(/<div\b[^>]*>|<\/div>/g)) {
+    if (match[0] === '</div>') {
+      stack.pop();
+    } else {
+      const id = match[0].match(/\bid="([^"]+)"/)?.[1] || '';
+      if (id === 'studentQRModal') {
+        found = true;
+        assert.ok(!stack.includes('groupActionModal'));
+        assert.equal(stack.length, 0);
+      }
+      stack.push(id);
+    }
+  }
+  assert.ok(found);
+});

@@ -1124,15 +1124,15 @@ function jsonResponse(obj) {
       <button onclick="closeModal('groupActionModal')" class="px-3 py-2 rounded bg-white/10">Cancel</button>
       <button onclick="confirmGroupAction()" class="px-3 py-2 rounded bg-red-500/20">Confirm</button>
     </div>
-    <div id="studentQRModal" role="dialog" aria-modal="true" aria-labelledby="studentQRTitle" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hidden">
-      <div class="theme-card rounded-2xl max-w-lg w-full p-5 space-y-3 text-center">
-        <h3 id="studentQRTitle" class="text-xl font-bold">Scan to join</h3>
-        <p id="studentQRRoom" class="text-lg font-mono"></p>
-        <div id="studentQRImage" class="bg-white p-4 rounded-xl inline-block"></div>
-        <p class="text-xs">Open the camera on your device, scan this code, then enter your name.</p>
-        <button onclick="copyStudentLockedLink()" class="px-3 py-2 rounded bg-white/10">Copy link instead</button>
-        <button onclick="closeModal('studentQRModal')" class="px-3 py-2 rounded bg-white/10">Close</button>
-      </div>
+  </div>
+  <div id="studentQRModal" role="dialog" aria-modal="true" aria-labelledby="studentQRTitle" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hidden">
+    <div class="theme-card rounded-2xl max-w-lg w-full p-5 space-y-3 text-center">
+      <h3 id="studentQRTitle" class="text-xl font-bold">Scan to join</h3>
+      <p id="studentQRRoom" class="text-lg font-mono"></p>
+      <div id="studentQRImage" class="bg-white p-4 rounded-xl inline-block"></div>
+      <p class="text-xs">Open the camera on your device, scan this code, then enter your name.</p>
+      <button onclick="copyStudentLockedLink()" class="px-3 py-2 rounded bg-white/10">Copy link instead</button>
+      <button onclick="closeModal('studentQRModal')" class="px-3 py-2 rounded bg-white/10">Close</button>
     </div>
   </div>
 
