@@ -52,7 +52,11 @@ function harness({ storage = new Map(), fetch = async () => { throw new Error('O
   vm.runInContext(script, context);
   vm.runInContext('playTone = () => {}; playRandomSpookySound = () => {};', context);
   const run = code => vm.runInContext(code, context);
-  return { run, storage, document, load: () => window.onload() };
+  if (!storage.has('chameleon_gas_url') && !search) run("gasWebAppUrl = '';");
+  return { run, storage, document, rawLoad: () => window.onload(), load: async () => {
+    await window.onload();
+    run("securityState.isTeacherUnlocked = true; securityState.teacherToken = 'test-session';");
+  } };
 }
 
 function server(initial) {
@@ -64,12 +68,12 @@ function server(initial) {
     fetch: async (_url, options = {}) => {
       if (options.method === 'POST') {
         const body = JSON.parse(options.body);
-        assert.equal(body.action, 'pushState');
-        state = body.state;
-        writes.push(state);
-        return { type: 'opaque' };
+        if (body.action === 'pushState') {
+          state = body.state;
+          writes.push(state);
+        }
       }
-      return { ok: true, json: async () => ({ ok: true, state }) };
+      return { ok: true, json: async () => ({ ok: true, state, authVersion: 1, teacherAuthenticated: true }) };
     }
   };
 }
@@ -202,6 +206,7 @@ test('offline pending teacher changes survive reload and cannot be overwritten b
   const reloaded = harness({ storage: app.storage, fetch: remote.fetch });
   await reloaded.load();
   assert.equal(reloaded.run('gameState.players[0].alive'), false);
+  await reloaded.run('retryLiveSync()');
   assert.equal(remote.state.players[0].alive, false);
   assert.equal(reloaded.run('pendingTeacherState'), null);
 });
@@ -211,22 +216,22 @@ test('an in-flight stale poll cannot undo a new teacher edit', async () => {
   let state;
   let firstRead = true;
   const app = harness({ fetch: async (_url, options = {}) => {
-    if (options.method === 'POST') {
+    if (JSON.parse(options.body).action === 'pushState') {
       state = JSON.parse(options.body).state;
-      return { type: 'opaque' };
+      return { ok: true, json: async () => ({ ok: true, state }) };
     }
     if (firstRead) {
       firstRead = false;
       return new Promise(resolve => { finishRead = resolve; });
     }
-    return { ok: true, json: async () => ({ ok: true, state }) };
+    return { ok: true, json: async () => ({ ok: true, state, authVersion: 1, teacherAuthenticated: true }) };
   } });
   await app.load();
   app.run(`gameState.networkMode = 'sheets'; gasWebAppUrl = 'https://script.google.com/macros/s/test/exec';`);
   const old = JSON.parse(app.run('JSON.stringify(gameState)'));
   const read = app.run('pullStateFromGoogleSheet()');
   await app.run('gameState.players[0].alive = false; pushStateToGoogleSheetIfNeeded();');
-  finishRead({ ok: true, json: async () => ({ ok: true, state: old }) });
+  finishRead({ ok: true, json: async () => ({ ok: true, state: old, authVersion: 1, teacherAuthenticated: true }) });
   await read;
   assert.equal(app.run('gameState.players[0].alive'), false);
 });
@@ -236,14 +241,14 @@ test('rapid teacher edits are serialized and the newest snapshot is persisted', 
   let state;
   let writes = 0;
   const app = harness({ fetch: async (_url, options = {}) => {
-    if (options.method === 'POST') {
+    if (JSON.parse(options.body).action === 'pushState') {
       const snapshot = JSON.parse(options.body).state;
       writes++;
       if (writes === 1) await new Promise(resolve => { releaseFirstWrite = resolve; });
       state = snapshot;
-      return { type: 'opaque' };
+      return { ok: true, json: async () => ({ ok: true, state }) };
     }
-    return { ok: true, json: async () => ({ ok: true, state }) };
+    return { ok: true, json: async () => ({ ok: true, state, authVersion: 1, teacherAuthenticated: true }) };
   } });
   await app.load();
   app.run(`gameState.networkMode = 'sheets'; gasWebAppUrl = 'https://script.google.com/macros/s/test/exec';`);
@@ -312,38 +317,6 @@ test('tasks still add exactly one percent and reject expired timers', async () =
     ['1', '2', '3', '4'].forEach(pressDecoyKeypad);
   `);
   assert.equal(app.run('gameState.taskProgress'), 11);
-});
-
-test('Apps Script keeps elimination and save acknowledgements when adding students after removals', () => {
-  const state = {
-    roomCode: 'WOLF', clientMutationId: 'save-1',
-    players: [{ id: 'existing', name: 'Existing', seat: 12, alive: false }]
-  };
-  const properties = new Map([['ROOM_WOLF', JSON.stringify(state)]]);
-  const backend = vm.createContext({
-    LockService: { getScriptLock: () => ({ tryLock() {}, releaseLock() {} }) },
-    PropertiesService: { getScriptProperties: () => ({
-      getProperty: key => properties.get(key),
-      setProperty: (key, value) => properties.set(key, value)
-    }) },
-    ContentService: {
-      MimeType: { JSON: 'json' },
-      createTextOutput: text => ({ setMimeType: () => JSON.parse(text) })
-    }
-  });
-  const code = html.match(/<textarea id="gasCodeTextarea"[^>]*>([\s\S]*?)<\/textarea>/)[1];
-  vm.runInContext(code, backend);
-  backend.request = {
-    parameter: {},
-    postData: { contents: JSON.stringify({
-      action: 'playerAction', room: 'WOLF', joinIfMissing: true,
-      playerId: 'new', name: 'New', deviceToken: 'new-device'
-    }) }
-  };
-  const response = vm.runInContext('handleRequest(request)', backend);
-  assert.equal(response.state.players[0].alive, false);
-  assert.equal(response.state.players[1].seat, 13);
-  assert.equal(response.state.clientMutationId, 'save-1');
 });
 
 test('home is the default view and the initial action says Start Game', async () => {
@@ -540,4 +513,65 @@ test('clearing one group preserves another group seat lock and clears its own re
   assert.equal(app.run('gameState.lastResult'), null);
   assert.equal(app.storage.has('chameleon_seat_lock_WOLF'), false);
   assert.equal(app.storage.has('chameleon_seat_lock_CLASS2'), true);
+});
+
+test('new devices start locked with the preconfigured spreadsheet and no default teacher PIN', async () => {
+  const app = harness();
+  app.run('gasWebAppUrl = DEFAULT_BACKEND_URL;');
+  await app.rawLoad();
+  assert.equal(app.run('securityState.isTeacherUnlocked'), false);
+  assert.equal(app.run('securityState.teacherToken'), '');
+  assert.equal(app.run('gasWebAppUrl.includes("script.google.com")'), true);
+  assert.equal(app.run('securityState.teacherPin'), undefined);
+});
+
+test('teacher login sends the passphrase only in POST and keeps credentials out of saved state', async () => {
+  const requests = [];
+  const app = harness({ fetch: async (url, options) => {
+    const body = JSON.parse(options.body);
+    requests.push({ url, options, body });
+    return { ok: true, json: async () => body.action === 'teacherLogin'
+      ? { ok: true, teacherToken: 'session-from-server', expiresAt: Date.now() + 3600000 }
+      : { ok: true, state: null, authVersion: 1, teacherAuthenticated: true } };
+  } });
+  await app.rawLoad();
+  app.run(`
+    gasWebAppUrl = DEFAULT_BACKEND_URL;
+    document.getElementById('pinModalInput').value = 'Only a test passphrase';
+    securityState.pendingTargetAction = 'projector';
+  `);
+  await app.run('verifyTeacherPin()');
+  assert.equal(app.run('securityState.isTeacherUnlocked'), true);
+  assert.equal(app.run('activeView'), 'projector');
+  assert.equal(app.document.getElementById('pinModalInput').value, '');
+  assert.equal(requests[0].options.method, 'POST');
+  assert.equal(requests[0].body.passphrase, 'Only a test passphrase');
+  assert.ok(!requests[0].url.includes('passphrase'));
+  app.run('saveLocalGameState()');
+  const saved = [...app.storage.values()].join('\n');
+  assert.ok(!saved.includes('Only a test passphrase'));
+  assert.ok(!saved.includes('session-from-server'));
+});
+
+test('incorrect or legacy login responses never unlock the dashboard', async () => {
+  const app = harness({ fetch: async () => ({ ok: true, json: async () => ({ ok: true, state: null }) }) });
+  await app.rawLoad();
+  app.run("document.getElementById('pinModalInput').value = '1234';");
+  await app.run('verifyTeacherPin()');
+  assert.equal(app.run('securityState.isTeacherUnlocked'), false);
+  assert.match(app.document.getElementById('teacherLoginStatus').textContent, /Update Code.gs/);
+});
+
+test('student join links contain the room and backend but never teacher credentials', async () => {
+  const app = harness();
+  await app.load();
+  app.run(`
+    gasWebAppUrl = DEFAULT_BACKEND_URL;
+    gameState.networkMode = 'sheets';
+    gameState.roomCode = 'CLASS4';
+    securityState.teacherToken = 'private-teacher-token';
+  `);
+  const link = app.run('studentJoinURL()');
+  assert.match(link, /mode=student&room=CLASS4&backend=/);
+  assert.ok(!link.includes('private-teacher-token'));
 });

@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="vendor/qrcode.js"></script>
 
   <style>
     :where(.hidden) { display: none; }
@@ -405,7 +406,7 @@
               🔒 Seat Locked
             </span>
             <button onclick="leaveStudentSession()" id="btnSwitchSeatStudent" class="text-xs px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition">
-              Switch Seat (PIN)
+              Switch Seat (Teacher)
             </button>
           </div>
         </div>
@@ -543,6 +544,7 @@
               <button onclick="copyStudentLockedLink()" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold hover:bg-cyan-500/30 transition" title="Copy Student-Only URL">
                 🔗 Student Link
               </button>
+              <button onclick="showStudentQRCode()" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold">Student QR</button>
               <button onclick="toggleGodDrawer()" class="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold hover:bg-amber-500/30 transition">
                 👑 Teacher Dashboard
               </button>
@@ -675,6 +677,7 @@
               <button onclick="applyRoomCodeChange()" class="px-2 py-1 rounded-lg bg-white/15 text-xs">Set</button>
             </div>
             <button onclick="copyStudentLockedLink()" class="px-3 py-2 rounded-lg bg-cyan-500/20 text-xs">Copy student link</button>
+            <button onclick="showStudentQRCode()" class="px-3 py-2 rounded-lg bg-cyan-500/20 text-xs">Show student QR code</button>
             <p class="text-xs opacity-75">Share the link, check the roster as students join, then use Start Game in the Phase Director above. Starting a new match shuffles roles.</p>
             <p class="text-xs opacity-75">Setting another room code opens that room's saved game (or an empty roster for a new code); it does not rename or copy this match.</p>
             <p class="text-xs opacity-75">Offline Seed Mode: give everyone the same code, class size, and a different seat number. Devices do not sync.</p>
@@ -682,7 +685,7 @@
         </div>
 
         <details class="space-y-3">
-          <summary class="cursor-pointer font-bold text-sm">Advanced / Testing: rules, PIN, bots, and resets</summary>
+          <summary class="cursor-pointer font-bold text-sm">Advanced / Testing: rules, teacher access, bots, and resets</summary>
           <button onclick="toggleRevealRolesOnGodPanel()" id="btnToggleSpyRoles" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30">
             👁️ Show Secret Roles (Teacher Eyes Only)
           </button>
@@ -716,18 +719,14 @@
 
           <!-- 3. Match Reset & Offline Seed Config -->
           <div class="p-4 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
-            <div class="text-xs font-bold uppercase tracking-wider text-amber-300">PIN and match reset</div>
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-300">Teacher access and match reset</div>
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block text-[10px] opacity-70 mb-0.5">Teacher PIN</label>
-                <div class="flex gap-1">
-                  <input id="godTeacherPinInput" type="text" value="1234" maxlength="8" class="w-full px-2 py-1 rounded-lg bg-black/60 border border-white/20 font-mono text-xs text-center" />
-                  <button onclick="saveTeacherPin()" class="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold hover:bg-white/25">Save</button>
-                </div>
+                <p class="text-xs font-bold">Shared teacher passphrase</p>
               </div>
             </div>
             <p class="text-[10px] leading-snug opacity-70">
-              🔐 Change the PIN here and press Save; no code editing needed. It is saved only in this browser, not shared with student devices. This is a local screen lock, not server authentication. Use at least 4 hard-to-guess characters.
+              Change the passphrase privately in TeacherSettings!B2 in your Google spreadsheet. Use at least 12 characters. Changing it invalidates teacher sessions on every device. No passphrase is saved in this website.
             </p>
             <div class="grid grid-cols-2 gap-2 pt-1">
               <button onclick="assignRolesAndStartNewMatch()" class="py-2 px-3 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold hover:bg-amber-500/30">
@@ -804,7 +803,7 @@
         <div class="flex items-center gap-2">
           <span class="text-2xl">🔐</span>
           <div>
-            <h3 class="font-bold text-base text-amber-300">Teacher PIN Required</h3>
+            <h3 class="font-bold text-base text-amber-300">Teacher sign-in</h3>
             <p class="text-xs opacity-75">Students are locked out of Projector & God Mode.</p>
           </div>
         </div>
@@ -813,13 +812,14 @@
 
       <div class="p-3 rounded-xl bg-black/40 border border-white/10 text-xs space-y-1.5 opacity-90">
         <div class="font-bold text-cyan-300">🛡️ How Screen Separation Works in Class:</div>
-        <p>1. <strong>Teacher Lock:</strong> Share your link ending with <code>?mode=student</code> (or turn on Student Lock). Students cannot open the Projector or Teacher Dashboard without your PIN (Default: <span class="font-mono font-bold text-amber-300">1234</span>).</p>
+        <p>Use the shared passphrase from your private Google spreadsheet, TeacherSettings!B2. There is no default passphrase. Teacher sessions last up to one hour and end when you refresh or sign out.</p>
         <p>2. <strong>Chromebook Seat Lock:</strong> Once a student joins as their name, their Chromebook saves a session lock token so they cannot switch seats to peek at another student's role.</p>
       </div>
 
       <div>
-        <label class="block text-xs font-bold uppercase tracking-wider opacity-80 mb-1">Enter Teacher PIN</label>
-        <input id="pinModalInput" type="password" maxlength="8" placeholder="••••" onkeydown="if(event.key==='Enter') verifyTeacherPin()" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 font-mono text-xl tracking-widest text-center focus:outline-none focus:border-amber-400" />
+        <label class="block text-xs font-bold uppercase tracking-wider opacity-80 mb-1">Teacher passphrase</label>
+        <input id="pinModalInput" type="password" maxlength="256" autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyTeacherPin()" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border border-white/20 text-center focus:outline-none focus:border-amber-400" />
+        <p id="teacherLoginStatus" class="text-xs" role="status" aria-live="polite"></p>
       </div>
 
       <div class="flex justify-end gap-2">
@@ -860,11 +860,13 @@
             <li>Create a new blank <strong>Google Sheet</strong> on your personal Google account.</li>
             <li>Click <strong>Extensions &rarr; Apps Script</strong> in the top menu.</li>
             <li>Delete any placeholder code in <code>Code.gs</code> and paste the complete script below.</li>
+            <li>Save, select <code>setupTeacherSettings</code> in the Apps Script function dropdown, and click <strong>Run</strong>. Approve Google's authorization prompt.</li>
+            <li>Return to the sheet. In the new <strong>TeacherSettings</strong> tab, enter your private passphrase (12–256 characters) in <strong>B2</strong>. Keep the entire spreadsheet private.</li>
             <li>Click <strong>Deploy &rarr; New deployment</strong> &rarr; Select type: <strong>Web app</strong>.</li>
             <li>Set <em>Execute as:</em> <strong>Me</strong>, and <em>Who has access:</em> <strong>Anyone</strong> (so students don't need to log in).</li>
             <li>Copy the <strong>Web app URL</strong> (`https://script.google.com/macros/s/.../exec`) and paste it into the box above!</li>
           </ol>
-          <p class="text-xs opacity-80"><strong>Updating an existing setup:</strong> replace Code.gs with the script below, save, then use Deploy &rarr; Manage deployments &rarr; Edit &rarr; New version &rarr; Deploy to keep the same URL. This version avoids reusing occupied seat numbers after players are removed. Do not clear the script properties; they hold your shared rooms.</p>
+          <p class="text-xs opacity-80"><strong>Updating an existing setup:</strong> replace Code.gs, run setupTeacherSettings and set B2, then use Deploy &rarr; Manage deployments &rarr; Edit &rarr; New version &rarr; Deploy to keep the same URL. Do not clear script properties; they hold your rooms. Remove any other old web-app deployments that still expose unauthenticated writes.</p>
         </div>
 
         <div class="space-y-1.5">
@@ -875,11 +877,6 @@
             </button>
           </div>
           <textarea id="gasCodeTextarea" readonly class="w-full h-56 p-3 rounded-xl bg-black/70 border border-white/15 font-mono text-[11px] text-emerald-300 focus:outline-none">
-// ============================================================================
-// CHAMELEON DEDUCTION - GOOGLE SHEETS MULTIPLAYER SERVER (Code.gs)
-// Paste into Extensions -> Apps Script in any Google Sheet, then Deploy as Web App
-// ============================================================================
-
 function doGet(e) {
   return handleRequest(e);
 }
@@ -888,98 +885,205 @@ function doPost(e) {
   return handleRequest(e);
 }
 
+function setupTeacherSettings() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('TeacherSettings');
+  if (!sheet) {
+    sheet = ss.insertSheet('TeacherSettings');
+    sheet.getRange('A1').setValue('Keep this spreadsheet private. Do not publish or share it with students.');
+    sheet.getRange('A2').setValue('Teacher passphrase (at least 12 characters)');
+    sheet.getRange('B2').setNumberFormat('@');
+    sheet.getRange('A3').setValue('Set B2 privately. Changing it invalidates every teacher session.');
+  }
+  return sheet;
+}
+
+function teacherFingerprint() {
+  var value = String(setupTeacherSettings().getRange('B2').getValue() || '');
+  if (value.length < 12 || value.length > 256) return null;
+  return digest(value);
+}
+
+function digest(value) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, value, Utilities.Charset.UTF_8));
+}
+
+function validTeacher(token) {
+  if (!token || typeof token !== 'string') return false;
+  var cached = CacheService.getScriptCache().get('teacher_' + digest(token));
+  var fingerprint = teacherFingerprint();
+  return Boolean(fingerprint && cached === fingerprint);
+}
+
+function loginTeacher(body) {
+  var fingerprint = teacherFingerprint();
+  if (!fingerprint) return { ok: false, error: 'TEACHER_SETUP_REQUIRED' };
+  var props = PropertiesService.getScriptProperties();
+  var now = Date.now();
+  var attempts = JSON.parse(props.getProperty('TEACHER_LOGIN_ATTEMPTS') || '{"count":0,"until":0}');
+  if (attempts.until > now && attempts.count >= 5) return { ok: false, error: 'LOGIN_RATE_LIMITED' };
+  if (attempts.until <= now) attempts = { count: 0, until: now + 60000 };
+  if (typeof body.passphrase !== 'string' || body.passphrase.length > 256 || digest(body.passphrase) !== fingerprint) {
+    attempts.count++;
+    props.setProperty('TEACHER_LOGIN_ATTEMPTS', JSON.stringify(attempts));
+    return { ok: false, error: 'INVALID_PASSPHRASE' };
+  }
+  props.deleteProperty('TEACHER_LOGIN_ATTEMPTS');
+  var token = Utilities.getUuid() + Utilities.getUuid();
+  CacheService.getScriptCache().put('teacher_' + digest(token), fingerprint, 3600);
+  return { ok: true, teacherToken: token, expiresAt: now + 3600000 };
+}
+
+function visibleState(state, teacher, deviceToken) {
+  if (!state) return null;
+  var copy = JSON.parse(JSON.stringify(state));
+  if (copy.lastHauntEvent && Date.now() - copy.lastHauntEvent.timestamp >= 3200) {
+    copy.players.forEach(function(p) { p.haunted = false; });
+  }
+  if (teacher) return copy;
+  var viewer = state.players.find(function(p) { return deviceToken && p.deviceToken === deviceToken; });
+  copy.revealRolesOnGodPanel = false;
+  copy.players.forEach(function(player) {
+    var own = deviceToken && player.deviceToken === deviceToken;
+    var teammate = viewer && viewer.role === 'IMPACTOR' && player.role === 'IMPACTOR';
+    if (!own && !teammate && state.phase !== 'gameover') player.role = 'CITIZEN';
+    delete player.deviceToken;
+    if (!own) {
+      player.nightTarget = null;
+      delete player.investigatedResult;
+    }
+  });
+  return copy;
+}
+
 function handleRequest(e) {
   var lock = LockService.getScriptLock();
-  lock.tryLock(5000);
+  if (!lock.tryLock(10000)) return jsonResponse({ ok: false, error: 'SERVER_BUSY' });
   try {
-    var props = PropertiesService.getScriptProperties();
     var params = e.parameter || {};
     var body = {};
     if (e.postData && e.postData.contents) {
-      try { body = JSON.parse(e.postData.contents); } catch (err) {}
+      try { body = JSON.parse(e.postData.contents); }
+      catch (error) { return jsonResponse({ ok: false, error: 'INVALID_REQUEST' }); }
     }
     var action = body.action || params.action || 'getState';
-    var room = (body.room || params.room || 'WOLF').toUpperCase();
-    var key = 'ROOM_' + room;
-    var rawState = props.getProperty(key);
-    var state = rawState ? JSON.parse(rawState) : null;
-
-    if (action === 'pushState' && body.state) {
-      props.setProperty(key, JSON.stringify(body.state));
-      logToSheet(room, body.state);
-      return jsonResponse({ ok: true, state: body.state });
+    if (action === 'teacherLogin') {
+      if (!e.postData) return jsonResponse({ ok: false, error: 'POST_REQUIRED' });
+      return jsonResponse(loginTeacher(body));
     }
-
-    if (action === 'playerAction' && state) {
-      var pId = body.playerId;
-      var player = state.players.find(function(p) { return p.id === pId || p.name.toLowerCase() === (body.name || '').toLowerCase(); });
-      if (!player && body.joinIfMissing && body.name) {
+    var teacher = validTeacher(body.teacherToken);
+    if (action === 'teacherLogout') {
+      if (body.teacherToken) CacheService.getScriptCache().remove('teacher_' + digest(body.teacherToken));
+      return jsonResponse({ ok: true });
+    }
+    var room = String(body.room || params.room || 'WOLF').toUpperCase();
+    if (!/^[A-Z0-9_-]{1,8}$/.test(room)) return jsonResponse({ ok: false, error: 'INVALID_ROOM' });
+    var props = PropertiesService.getScriptProperties();
+    var key = 'ROOM_' + room;
+    var raw = props.getProperty(key);
+    var state = raw ? JSON.parse(raw) : null;
+    if (action === 'pushState') {
+      if (!teacher) return jsonResponse({ ok: false, error: 'TEACHER_AUTH_REQUIRED' });
+      if (!body.state || body.state.roomCode !== room || !Array.isArray(body.state.players)) {
+        return jsonResponse({ ok: false, error: 'INVALID_STATE' });
+      }
+      props.setProperty(key, JSON.stringify(body.state));
+      return jsonResponse({ ok: true, state: visibleState(body.state, true) });
+    }
+    if (action === 'playerAction') {
+      if (!state) return jsonResponse({ ok: false, error: 'ROOM_NOT_FOUND' });
+      if (typeof body.deviceToken !== 'string' || body.deviceToken.length < 8) {
+        return jsonResponse({ ok: false, error: 'DEVICE_REQUIRED' });
+      }
+      var player = state.players.find(function(p) {
+        return p.id === body.playerId || (body.joinIfMissing && p.name.toLowerCase() === String(body.name || '').toLowerCase());
+      });
+      if (player && player.deviceToken && player.deviceToken !== body.deviceToken) {
+        return jsonResponse({ ok: false, error: 'SEAT_LOCKED_BY_ANOTHER_DEVICE' });
+      }
+      if (player && !player.deviceToken && !body.joinIfMissing) {
+        return jsonResponse({ ok: false, error: 'JOIN_REQUIRED' });
+      }
+      if (!player && body.joinIfMissing && body.name && state.phase === 'lobby') {
         player = {
-          id: body.playerId || ('p_' + new Date().getTime()),
+          id: Utilities.getUuid(),
           seat: Math.max.apply(null, [0].concat(state.players.map(function(p) { return Number(p.seat) || 0; }))) + 1,
-          name: body.name,
-          alive: true,
-          role: 'CITIZEN',
-          deviceToken: body.deviceToken || null,
-          location: null,
-          nightTarget: null,
-          voteTarget: null,
-          hauntTarget: null,
-          haunted: false,
-          hauntCount: 0
+          name: String(body.name).slice(0, 16), alive: true, role: 'CITIZEN',
+          location: null, nightTarget: null, voteTarget: null, hauntTarget: null,
+          haunted: false, hauntCount: 0
         };
         state.players.push(player);
       }
-      if (player) {
-        // Enforce deviceToken seat ownership so another Chromebook cannot hijack this student's seat
-        if (player.deviceToken && body.deviceToken && player.deviceToken !== body.deviceToken) {
-          return jsonResponse({ ok: false, error: 'SEAT_LOCKED_BY_ANOTHER_DEVICE', state: state });
+      if (!player) return jsonResponse({ ok: false, error: 'PLAYER_NOT_FOUND' });
+      player.deviceToken = body.deviceToken;
+      player.isBot = false;
+      var active = !state.timerPaused && state.phaseEndTime > Date.now();
+      var target = state.players.find(function(p) { return p.id === body.nightTarget; });
+      if (body.location !== undefined) {
+        if (!active || state.phase !== 'dusk' || !player.alive) return jsonResponse({ ok: false, error: 'ACTION_CLOSED' });
+        player.location = String(body.location);
+      }
+      if (body.nightTarget !== undefined) {
+        if (!active || state.phase !== 'night' || !player.alive || !target || !target.alive ||
+            ['IMPACTOR', 'INVESTIGATOR', 'PROTECTOR'].indexOf(player.role) < 0) {
+          return jsonResponse({ ok: false, error: 'ACTION_CLOSED' });
         }
-        if (body.deviceToken && !player.deviceToken) {
-          player.deviceToken = body.deviceToken;
+        player.nightTarget = target.id;
+        if (player.role === 'INVESTIGATOR') {
+          player.investigatedResult = { targetId: target.id, isThreat: target.role === 'IMPACTOR' };
         }
-        if (body.location !== undefined) player.location = body.location;
-        if (body.nightTarget !== undefined) player.nightTarget = body.nightTarget;
-        if (body.voteTarget !== undefined) player.voteTarget = body.voteTarget;
-        if (body.hauntTarget !== undefined) {
-          player.hauntTarget = body.hauntTarget;
-          state.players.forEach(function(x) { x.haunted = false; });
-          var hTarget = state.players.find(function(x) { return x.id === body.hauntTarget; });
-          if (hTarget) {
-            hTarget.haunted = true;
-            hTarget.hauntCount = (hTarget.hauntCount || 0) + 1;
-            state.lastHauntEvent = { targetId: hTarget.id, targetName: hTarget.name, timestamp: new Date().getTime() };
-          }
+      }
+      if (body.voteTarget !== undefined) {
+        if (!active || state.phase !== 'voting' || !player.alive ||
+            !state.players.some(function(p) { return p.id === body.voteTarget && p.alive; })) {
+          return jsonResponse({ ok: false, error: 'ACTION_CLOSED' });
         }
-        if (body.taskDelta) {
-          state.taskProgress = Math.min(100, (state.taskProgress || 0) + Number(body.taskDelta));
+        player.voteTarget = body.voteTarget;
+      }
+      if (body.hauntTarget !== undefined) {
+        var hTarget = state.players.find(function(p) { return p.id === body.hauntTarget && p.alive; });
+        if (player.alive || !hTarget || state.phase === 'gameover' || Date.now() - (player.lastHauntAt || 0) < 6000) {
+          return jsonResponse({ ok: false, error: 'HAUNT_UNAVAILABLE' });
+        }
+        player.lastHauntAt = Date.now();
+        player.hauntTarget = hTarget.id;
+        state.players.forEach(function(p) { p.haunted = false; });
+        hTarget.haunted = true;
+        hTarget.hauntCount = (hTarget.hauntCount || 0) + 1;
+        state.lastHauntEvent = { targetId: hTarget.id, targetName: hTarget.name, timestamp: Date.now() };
+      }
+      if (body.taskDelta !== undefined) {
+        if (!active || state.phase === 'gameover' || body.taskDelta !== 1) {
+          return jsonResponse({ ok: false, error: 'TASK_CLOSED' });
+        }
+        state.taskProgress = Math.min(100, (state.taskProgress || 0) + 1);
+        if (state.taskProgress === 100) {
+          state.phase = 'gameover';
+          state.timerPaused = true;
+          state.announcement = 'Citizen team wins! The class completed 100% of its fortifications.';
+          state.lastResult = { matchSessionId: state.matchSessionId, endedAt: Date.now(), text: state.announcement };
         }
       }
       props.setProperty(key, JSON.stringify(state));
-      return jsonResponse({ ok: true, state: state });
+      return jsonResponse({ ok: true, state: visibleState(state, teacher, body.deviceToken) });
     }
-
-    return jsonResponse({ ok: true, state: state });
+    if (action !== 'getState') return jsonResponse({ ok: false, error: 'UNKNOWN_ACTION' });
+    return jsonResponse({
+      ok: true, authVersion: 1, teacherAuthenticated: teacher,
+      state: visibleState(state, teacher, body.deviceToken || params.deviceToken)
+    });
+  } catch (error) {
+    console.error('Game request failed', error.message);
+    return jsonResponse({ ok: false, error: 'SERVER_ERROR' });
   } finally {
     lock.releaseLock();
   }
 }
 
-function logToSheet(room, state) {
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('LiveState') || ss.insertSheet('LiveState');
-    sheet.getRange('A1').setValue('Room: ' + room);
-    sheet.getRange('B1').setValue('Phase: ' + state.phase);
-    sheet.getRange('C1').setValue('Updated: ' + new Date().toLocaleTimeString());
-    sheet.getRange('A2').setValue(JSON.stringify(state.players));
-  } catch (err) {}
-}
-
 function jsonResponse(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}</textarea>
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+</textarea>
         </div>
       </div>
     </div>
@@ -1019,6 +1123,16 @@ function jsonResponse(obj) {
       <p id="groupActionMessage" class="text-sm"></p>
       <button onclick="closeModal('groupActionModal')" class="px-3 py-2 rounded bg-white/10">Cancel</button>
       <button onclick="confirmGroupAction()" class="px-3 py-2 rounded bg-red-500/20">Confirm</button>
+    </div>
+    <div id="studentQRModal" role="dialog" aria-modal="true" aria-labelledby="studentQRTitle" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 hidden">
+      <div class="theme-card rounded-2xl max-w-lg w-full p-5 space-y-3 text-center">
+        <h3 id="studentQRTitle" class="text-xl font-bold">Scan to join</h3>
+        <p id="studentQRRoom" class="text-lg font-mono"></p>
+        <div id="studentQRImage" class="bg-white p-4 rounded-xl inline-block"></div>
+        <p class="text-xs">Open the camera on your device, scan this code, then enter your name.</p>
+        <button onclick="copyStudentLockedLink()" class="px-3 py-2 rounded bg-white/10">Copy link instead</button>
+        <button onclick="closeModal('studentQRModal')" class="px-3 py-2 rounded bg-white/10">Close</button>
+      </div>
     </div>
   </div>
 
@@ -1276,8 +1390,9 @@ function jsonResponse(obj) {
     localStorage.setItem('chameleon_device_token', studentSession.deviceToken);
 
     let securityState = {
-      teacherPin: localStorage.getItem('chameleon_teacher_pin') || '1234',
-      isTeacherUnlocked: true,
+      teacherToken: '',
+      teacherExpiresAt: 0,
+      isTeacherUnlocked: false,
       pendingTargetAction: null
     };
 
@@ -1290,7 +1405,8 @@ function jsonResponse(obj) {
     let soundEnabled = true;
     let timerInterval = null;
     let syncInterval = null;
-    let gasWebAppUrl = localStorage.getItem('chameleon_gas_url') || '';
+    const DEFAULT_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxJgDkHX5BRI4tI3h3ZkTbpOGO1DCU4X-p8ShWlYhtRcZ4ET-UsKXVEBvb8D5g8jDnp/exec';
+    let gasWebAppUrl = localStorage.getItem('chameleon_gas_url') || DEFAULT_BACKEND_URL;
     const DEFAULT_GAME_STATE = JSON.parse(JSON.stringify(gameState));
     let activeView = 'home';
     let storageError = false;
@@ -1815,8 +1931,8 @@ function jsonResponse(obj) {
       pendingGroupAction = action;
       const messages = {
         new: 'Start a new game in this class? The roster, rules, layout, and recent result stay. Roles, eliminations, votes, tasks, seat locks, and timer will reset.',
-        settings: 'Restore default rules, theme, and instructor layout for this class? The roster, current match, connection, and teacher PIN stay.',
-        clear: 'Permanently clear this class roster, match, recent result, rules, and instructor layout? Other classes, connection, and teacher PIN stay. This cannot be undone.'
+        settings: 'Restore default rules, theme, and instructor layout for this class? The roster, current match, connection, and shared teacher access stay.',
+        clear: 'Permanently clear this class roster, match, recent result, rules, and instructor layout? Other classes, connection, and shared teacher access stay. This cannot be undone.'
       };
       document.getElementById('groupActionMessage').textContent = messages[action];
       openModal('groupActionModal');
@@ -1926,6 +2042,7 @@ function jsonResponse(obj) {
        5. INITIALIZATION, URL STUDENT LOCK & FIXED TIMESTAMP TIMER
        ========================================================================== */
     window.onload = async function() {
+      localStorage.removeItem('chameleon_teacher_pin');
       const urlParams = new URLSearchParams(window.location.search);
       const sharedBackend = urlParams.get('backend');
       if (sharedBackend && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(sharedBackend)) {
@@ -1935,7 +2052,6 @@ function jsonResponse(obj) {
       if (gasWebAppUrl) {
         document.getElementById('gasUrlInput').value = gasWebAppUrl;
       }
-      document.getElementById('godTeacherPinInput').value = securityState.teacherPin;
 
       // Keyboard listener for Anti-Peek SPACEBAR hold
       window.addEventListener('keydown', (e) => {
@@ -1991,7 +2107,7 @@ function jsonResponse(obj) {
         updateSecurityLockUI();
         switchView('student');
       } else {
-        securityState.isTeacherUnlocked = true;
+        securityState.isTeacherUnlocked = false;
         updateSecurityLockUI();
         switchView(restoredView === 'student' ? 'student' : 'home');
       }
@@ -2017,6 +2133,10 @@ function jsonResponse(obj) {
 
       // Start Google Sheets sync polling loop (active when networkMode === 'sheets')
       syncInterval = setInterval(() => {
+        if (securityState.isTeacherUnlocked && Date.now() >= securityState.teacherExpiresAt) {
+          expireTeacherSession();
+          showToast('Teacher session expired. Sign in again.');
+        }
         if (gameState.networkMode === 'sheets' && gasWebAppUrl) {
           if (!pendingTeacherState) pullStateFromGoogleSheet();
         }
@@ -2044,52 +2164,83 @@ function jsonResponse(obj) {
         return;
       }
       securityState.pendingTargetAction = target;
+      document.getElementById('teacherLoginStatus').textContent = '';
       document.getElementById('pinModalInput').value = '';
       openModal('teacherPinModal');
       setTimeout(() => document.getElementById('pinModalInput').focus(), 80);
     }
 
-    function verifyTeacherPin() {
-      const entered = (document.getElementById('pinModalInput').value || '').trim();
-      if (entered === securityState.teacherPin) {
+    async function verifyTeacherPin() {
+      const input = document.getElementById('pinModalInput');
+      const entered = input.value;
+      input.value = '';
+      try {
+        const data = await backendRequest({ action: 'teacherLogin', passphrase: entered });
+        if (!data.teacherToken || !Number.isFinite(data.expiresAt)) throw new Error('Unsupported login response. Update Code.gs first.');
+        securityState.teacherToken = data.teacherToken;
+        securityState.teacherExpiresAt = data.expiresAt;
         securityState.isTeacherUnlocked = true;
         closeModal('teacherPinModal');
         updateSecurityLockUI();
         playTone('success');
-        showToast('🔓 Teacher Access Unlocked!');
+        showToast('Teacher session unlocked for up to one hour.');
+        if (pendingTeacherState) await flushPendingTeacherState();
+        else if (gameState.networkMode === 'sheets') await pullStateFromGoogleSheet();
 
         if (securityState.pendingTargetAction === 'projector') {
-          switchView('projector');
+          openTeacherDashboard();
         } else if (securityState.pendingTargetAction === 'backend') {
           openModal('backendModal');
         } else if (securityState.pendingTargetAction === 'switchSeat') {
           clearStudentSeatLockAndLeave();
         }
         securityState.pendingTargetAction = null;
-      } else {
+      } catch (error) {
+        console.error('Teacher login failed', error.message);
         playTone('dramatic');
-        showToast('❌ Incorrect Teacher PIN!');
+        document.getElementById('teacherLoginStatus').textContent = error.message;
+        showToast(error.message);
       }
     }
 
-    function saveTeacherPin() {
-      const newPin = (document.getElementById('godTeacherPinInput').value || '').trim();
-      if (newPin.length < 4) {
-        showToast('⚠️ Choose a PIN of at least 4 characters.');
-        document.getElementById('godTeacherPinInput').value = securityState.teacherPin;
-        return;
+    function expireTeacherSession() {
+      securityState.teacherToken = '';
+      securityState.teacherExpiresAt = 0;
+      securityState.isTeacherUnlocked = false;
+      dashboardEditing = false;
+      document.getElementById('teacherGodDrawer').classList.add('hidden');
+      updateSecurityLockUI();
+      switchView('home');
+    }
+
+    async function backendRequest(payload) {
+      const response = await fetch(gasWebAppUrl, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload), signal: AbortSignal.timeout(15000)
+      });
+      if (!response.ok) throw new Error('Spreadsheet request failed. Check your deployment.');
+      const data = await response.json();
+      if (!data || data.ok !== true) {
+        const errors = {
+          TEACHER_SETUP_REQUIRED: 'Set a passphrase of at least 12 characters in TeacherSettings!B2.',
+          INVALID_PASSPHRASE: 'Incorrect teacher passphrase.',
+          LOGIN_RATE_LIMITED: 'Too many login attempts. Wait one minute and try again.',
+          TEACHER_AUTH_REQUIRED: 'Teacher session expired or passphrase changed. Sign in again.'
+        };
+        if (data?.error === 'TEACHER_AUTH_REQUIRED') expireTeacherSession();
+        throw new Error(errors[data?.error] || data?.error || 'Invalid spreadsheet response.');
       }
-      securityState.teacherPin = newPin;
-      localStorage.setItem('chameleon_teacher_pin', newPin);
-      showToast('🔐 Teacher PIN saved on this device.');
+      return data;
     }
 
     function toggleStudentLockSimulation() {
       if (securityState.isTeacherUnlocked) {
-        securityState.isTeacherUnlocked = false;
+        backendRequest({ action: 'teacherLogout', teacherToken: securityState.teacherToken })
+          .catch(error => console.error('Server logout failed; token expires automatically', error.message));
+        expireTeacherSession();
         switchView('student');
         updateSecurityLockUI();
-        showToast('🔒 Student Lock Active! Projector & God Mode now require your Teacher PIN.');
+        showToast('Signed out. Teacher access requires the shared passphrase.');
       } else {
         requestTeacherAccess('projector');
       }
@@ -2103,15 +2254,14 @@ function jsonResponse(obj) {
         btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition flex items-center gap-1';
         if (simPicker) simPicker.classList.remove('hidden');
       } else {
-        btn.innerHTML = `<span>🔒</span> <span class="hidden lg:inline">Student Locked (PIN)</span>`;
+        btn.innerHTML = `<span>🔒</span> <span class="hidden lg:inline">Teacher sign-in</span>`;
         btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1';
         if (simPicker) simPicker.classList.add('hidden');
       }
     }
 
     function copyStudentLockedLink() {
-      const baseUrl = window.location.href.split('?')[0];
-      const studentUrl = `${baseUrl}?mode=student&room=${encodeURIComponent(gameState.roomCode)}${gameState.networkMode === 'sheets' && gasWebAppUrl ? '&backend=' + encodeURIComponent(gasWebAppUrl) : ''}`;
+      const studentUrl = studentJoinURL();
       const tempInput = document.createElement('input');
       tempInput.value = studentUrl;
       document.body.appendChild(tempInput);
@@ -2119,6 +2269,31 @@ function jsonResponse(obj) {
       document.execCommand('copy');
       tempInput.remove();
       showToast('🔗 Copied Student-Locked URL (?mode=student) to clipboard!');
+    }
+
+    function studentJoinURL() {
+      const baseUrl = window.location.href.split(/[?#]/)[0];
+      return `${baseUrl}?mode=student&room=${encodeURIComponent(gameState.roomCode)}${gameState.networkMode === 'sheets' && gasWebAppUrl ? '&backend=' + encodeURIComponent(gasWebAppUrl) : ''}`;
+    }
+
+    function showStudentQRCode() {
+      if (!securityState.isTeacherUnlocked) {
+        requestTeacherAccess('projector');
+        return;
+      }
+      const code = qrcode(0, 'M');
+      code.addData(studentJoinURL());
+      code.make();
+      document.getElementById('studentQRImage').innerHTML = code.createSvgTag({
+        cellSize: 4, margin: 16, scalable: true
+      });
+      const svg = document.getElementById('studentQRImage').querySelector('svg');
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('style', 'max-width:320px;display:block');
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', 'Student join QR code for room ' + gameState.roomCode);
+      document.getElementById('studentQRRoom').textContent = 'Room ' + gameState.roomCode;
+      openModal('studentQRModal');
     }
 
     function saveStudentSeatLock(player) {
@@ -2412,7 +2587,7 @@ function jsonResponse(obj) {
         securityState.pendingTargetAction = 'switchSeat';
         document.getElementById('pinModalInput').value = '';
         openModal('teacherPinModal');
-        showToast('🔒 Switching seats requires the Teacher PIN so students cannot peek at other roles.');
+        showToast('Switching seats requires teacher sign-in.');
         return;
       }
       clearStudentSeatLockAndLeave();
@@ -2473,7 +2648,7 @@ function jsonResponse(obj) {
       playTone('success');
 
       const t = THEMES[gameState.theme];
-      if (p.role === 'INVESTIGATOR') {
+      if (p.role === 'INVESTIGATOR' && gameState.networkMode !== 'sheets') {
         const isThreat = target.role === 'IMPACTOR';
         studentSession.investigatedResult = {
           targetName: target.name,
@@ -3191,20 +3366,24 @@ function jsonResponse(obj) {
     }
 
     async function readRemoteState(url, room) {
-      const res = await fetch(`${url}?action=getState&room=${encodeURIComponent(room)}&_=${Date.now()}`, {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(15000)
+      if (url !== gasWebAppUrl) throw new Error('Spreadsheet connection changed.');
+      const data = await backendRequest({
+        action: 'getState', room, teacherToken: securityState.teacherToken,
+        deviceToken: studentSession.deviceToken
       });
-      if (!res.ok) throw new Error('Spreadsheet request failed: ' + res.status);
-      const data = await res.json();
-      if (!data || data.ok === false) throw new Error(data?.error || 'Invalid spreadsheet response');
+      if (data.authVersion !== 1) throw new Error('Update and redeploy Code.gs to enable secure teacher login.');
+      if (securityState.isTeacherUnlocked && !data.teacherAuthenticated) {
+        expireTeacherSession();
+        throw new Error('Teacher session expired. Sign in again.');
+      }
       if (data.state && (!Array.isArray(data.state.players) || data.state.roomCode !== room ||
           !THEMES[data.state.theme])) throw new Error('Invalid room state from spreadsheet');
       return data.state || null;
     }
 
     async function flushPendingTeacherState() {
-      if (writeInFlight || !pendingTeacherState || gameState.networkMode !== 'sheets') return;
+      if (writeInFlight || !pendingTeacherState || gameState.networkMode !== 'sheets' ||
+          !securityState.isTeacherUnlocked || !securityState.teacherToken) return;
       if (!gasWebAppUrl) {
         syncStatus = 'Spreadsheet URL needed; changes saved on this browser only';
         renderTeacherSetup();
@@ -3217,25 +3396,10 @@ function jsonResponse(obj) {
           const url = gasWebAppUrl;
           syncStatus = 'Saving to spreadsheet...';
           renderTeacherSetup();
-          await fetch(url, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'pushState', room: snapshot.roomCode, state: snapshot }),
-            signal: AbortSignal.timeout(15000)
-          });
-          // An opaque POST response is not a save acknowledgement. Read back the
-          // mutation ID before allowing polls to replace the local snapshot.
-          let confirmed = false;
-          for (let attempt = 0; attempt < 4; attempt++) {
-            const remote = await readRemoteState(url, snapshot.roomCode);
-            if (remote?.clientMutationId === snapshot.clientMutationId) {
-              confirmed = true;
-              break;
-            }
-            await new Promise(resolve => setTimeout(resolve, 600));
-          }
-          if (!confirmed) throw new Error('Spreadsheet has not confirmed the save');
+          const response = await backendRequest({ action: 'pushState', room: snapshot.roomCode,
+            state: snapshot, teacherToken: securityState.teacherToken });
+          if (response.state?.clientMutationId !== snapshot.clientMutationId)
+            throw new Error('Spreadsheet has not confirmed the save');
           if (pendingTeacherState?.clientMutationId === snapshot.clientMutationId) pendingTeacherState = null;
           syncStatus = 'Spreadsheet save confirmed';
           sharedRoomExists = true;
@@ -3262,17 +3426,21 @@ function jsonResponse(obj) {
     async function syncStudentActionToBackend(payload) {
       if (gameState.networkMode !== 'sheets' || !gasWebAppUrl) return;
       try {
-        await fetch(gasWebAppUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
+        const data = await backendRequest({
             action: 'playerAction',
             room: gameState.roomCode,
             deviceToken: studentSession.deviceToken,
             ...payload
-          })
         });
+        if (payload.joinIfMissing && data.state) {
+          const joined = data.state.players.find(p => p.name.toLowerCase() === payload.name.toLowerCase());
+          if (joined) {
+            studentSession.playerId = joined.id;
+            studentSession.name = joined.name;
+            studentSession.seatNumber = joined.seat;
+            saveStudentSeatLock(joined);
+          }
+        }
         await pullStateFromGoogleSheet();
       } catch (e) {
         console.error('Student action could not be sent', e);
@@ -3298,6 +3466,7 @@ function jsonResponse(obj) {
         sharedRoomExists = Boolean(remote);
         if (remote) {
           gameState = { ...gameState, ...remote, networkMode: 'sheets' };
+          setTheme(gameState.theme, false);
           normalizePlayerSeats();
           if (!gameState.timerPaused) gameState.timerSeconds = Math.max(0, Math.ceil((gameState.phaseEndTime - Date.now()) / 1000));
           localTimerTracker.lastSeenPhase = remote.phase;
@@ -3310,6 +3479,14 @@ function jsonResponse(obj) {
           }
 
           restoreLockedStudentSeatIfAny();
+          const own = getActiveStudentPlayer();
+          if (own?.investigatedResult) {
+            const target = gameState.players.find(p => p.id === own.investigatedResult.targetId);
+            studentSession.investigatedResult = {
+              isThreat: own.investigatedResult.isThreat,
+              text: `${target?.name || 'Player'}: ${own.investigatedResult.isThreat ? 'Threat detected' : 'No threat detected'}`
+            };
+          }
         }
         renderAll();
       } catch (e) {

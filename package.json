@@ -1,0 +1,12 @@
+{
+  "name": "classroom-games",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "jsqr": "1.4.0",
+    "qrcode-generator": "2.0.4"
+  }
+}
